@@ -1,20 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-netflix-red: var(--accent-color);
-  --color-netflix-dark: #141414;
-  --color-netflix-gray: #b3b3b3;
+  --color-shows-blue: #2b82f6;
+  --color-shows-dark: #0f1014;
+  --color-shows-gray: #8a8a93;
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
 }
 
 @layer base {
   :root {
-    --accent-color: #E50914;
+    --accent-color: #2b82f6;
   }
   
   body {
-    background-color: var(--color-netflix-dark);
+    background-color: var(--color-shows-dark);
     color: white;
-    font-family: sans-serif;
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     margin: 0;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
