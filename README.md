@@ -61,6 +61,18 @@ Whether you are browsing movies, checking out TV shows, or diving into trailers,
 
 ---
 
+
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=shivamrajuniverse616-crypto%2FNetphlixx&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=shivamrajuniverse616-crypto/Netphlixx&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=shivamrajuniverse616-crypto/Netphlixx&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=shivamrajuniverse616-crypto/Netphlixx&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## 🛠️ Installation & Setup
 
 Follow these simple steps to get a local copy of the project up and running for development and testing.
