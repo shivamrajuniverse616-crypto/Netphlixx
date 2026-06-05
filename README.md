@@ -122,6 +122,8 @@ Contributions make the open-source community such an amazing place to learn, ins
 
 Distributed under the MIT License. See [`LICENSE`](LICENSE) for more information.
 
+> **Disclaimer:** This project is created strictly for educational and portfolio purposes only. It is not affiliated with, endorsed by, or in any way officially connected with Netflix, Inc. All trademarks are the property of their respective owners.
+
 <br />
 
 <div align="center">
