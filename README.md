@@ -4,6 +4,7 @@
 
 Welcome to **Netphlixx**, a modern, highly realistic streaming platform clone engineered with cutting-edge web technologies. This application is crafted to provide a premium user experience, complete with fluid animations, a dark mode aesthetic, and robust video playback functionality. 
 
+> **Live Demo:** [https://netphlixx.netlify.app/](https://netphlixx.netlify.app/)
 > **Made with ❤️ by [Shivam](https://github.com/shivamrajuniverse616-crypto)**
 
 ---
