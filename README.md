@@ -14,7 +14,7 @@
 
   <br />
 
-  ![UI Mockup](public/ui-mockup.png)
+  ![Presentation Showcase](public/presentation.png)
 
 </div>
 
