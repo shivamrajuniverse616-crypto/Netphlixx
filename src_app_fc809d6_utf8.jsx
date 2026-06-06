@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { Search, Bell, User, Info, X, ChevronLeft, ChevronRight, ChevronDown, Plus, ThumbsUp, Home as HomeIcon, Star, Film, Tv, Radio, Gamepad2, Calendar, Clock, Download, Heart, Bookmark, Share2 } from 'lucide-react';
 import { FaPlay as Play, FaPause as Pause, FaExpand as Maximize, FaVolumeHigh as Volume2, FaVolumeXmark as VolumeX, FaClosedCaptioning as Subtitles, FaGear as Settings, FaRotateRight as RotateCw, FaRotateLeft as RotateCcw, FaArrowLeft as ArrowLeft, FaHeadphones as Headphones, FaCheck as Check } from 'react-icons/fa6';
 import { FastAverageColor } from 'fast-average-color';
-import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import Footer from './components/Footer';
 import NetflixIntro from './components/NetflixIntro';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
-import 'react-lazy-load-image-component/src/effects/blur.css';
 
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const BASE_URL = 'https://api.themoviedb.org/3';
@@ -20,8 +17,6 @@ const fac = new FastAverageColor();
 
 // Endpoints
 const requests = {
-  fetchNowPlayingMovies: `${BASE_URL}/movie/now_playing?api_key=${API_KEY}`,
-  fetchUpcomingMovies: `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_date.gte=${new Date().toISOString().split('T')[0]}&sort_by=popularity.desc`,
   fetchTrendingMovies: `${BASE_URL}/trending/movie/week?api_key=${API_KEY}`,
   fetchActionMovies: `${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=28`,
   fetchSciFiMovies: `${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=878`,
@@ -35,110 +30,6 @@ const requests = {
   fetchSearch: `${BASE_URL}/search/multi?api_key=${API_KEY}&query=`,
 };
 
-
-function HoverPortal({ children, coordinates, isHovered, onMouseLeave }) {
-  useEffect(() => {
-    if (isHovered) {
-      const handleScroll = () => onMouseLeave();
-      window.addEventListener('wheel', handleScroll, { passive: true });
-      window.addEventListener('touchmove', handleScroll, { passive: true });
-      return () => {
-        window.removeEventListener('wheel', handleScroll);
-        window.removeEventListener('touchmove', handleScroll);
-      };
-    }
-  }, [isHovered, onMouseLeave]);
-
-  if (!isHovered || !coordinates) return null;
-  return createPortal(
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1.15 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.3 }}
-      className="fixed z-[999] rounded-md shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-[#141414] overflow-hidden"
-      style={{
-        top: coordinates.top - 20,
-        left: coordinates.left - 20,
-        width: coordinates.width + 40,
-        height: 'auto',
-      }}
-      onMouseLeave={onMouseLeave}
-    >
-      {children}
-    </motion.div>,
-    document.body
-  );
-}
-
-function MagneticButton({ children, className = '', onClick, type = "button" }) {
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-
-  const mouseXSpring = useSpring(x, { stiffness: 150, damping: 15, mass: 0.1 });
-  const mouseYSpring = useSpring(y, { stiffness: 150, damping: 15, mass: 0.1 });
-  
-  const [ripples, setRipples] = useState([]);
-
-  const handleMouseMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const centerX = rect.left + width / 2;
-    const centerY = rect.top + height / 2;
-    const pullX = ((e.clientX - centerX) / width) * 15; 
-    const pullY = ((e.clientY - centerY) / height) * 15;
-    x.set(pullX);
-    y.set(pullY);
-  };
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-  
-  const handleMouseDown = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const rippleX = e.clientX - rect.left;
-    const rippleY = e.clientY - rect.top;
-    setRipples(prev => [...prev, { x: rippleX, y: rippleY, id: Date.now() }]);
-  };
-
-  return (
-    <motion.button
-      type={type}
-      onClick={onClick}
-      className={`relative overflow-hidden outline-none ${className}`}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onMouseDown={handleMouseDown}
-      style={{ x: mouseXSpring, y: mouseYSpring }}
-      whileTap={{ scale: 0.95 }}
-      whileHover={{ scale: 1.05 }}
-    >
-      {ripples.map(ripple => (
-        <motion.span
-          key={ripple.id}
-          initial={{ scale: 0, opacity: 0.5 }}
-          animate={{ scale: 4, opacity: 0 }}
-          transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-          onAnimationComplete={() => setRipples(prev => prev.filter(r => r.id !== ripple.id))}
-          className="absolute rounded-full bg-white pointer-events-none z-0"
-          style={{
-            left: ripple.x,
-            top: ripple.y,
-            width: Math.max(100, 100),
-            height: Math.max(100, 100),
-            marginLeft: -50,
-            marginTop: -50,
-          }}
-        />
-      ))}
-      <span className="relative z-10 flex items-center justify-center w-full h-full">{children}</span>
-    </motion.button>
-  );
-}
-
 function getMediaType(item) {
   if (item?.media_type) return item.media_type;
   if (item?.title) return 'movie';
@@ -147,26 +38,6 @@ function getMediaType(item) {
 }
 
 function Navbar({ onSearch, activeTab, setActiveTab, toggleMobileSearch, mobileSearchOpen }) {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
-
-  const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
-    }
-  };
-
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -204,9 +75,6 @@ function Navbar({ onSearch, activeTab, setActiveTab, toggleMobileSearch, mobileS
 
   const handleTabClick = (item) => {
     setActiveTab(item);
-    setSearchQuery('');
-    if (onSearch) onSearch('');
-    if (mobileSearchOpen) toggleMobileSearch();
     navigate('/');
   };
 
@@ -265,13 +133,8 @@ function Navbar({ onSearch, activeTab, setActiveTab, toggleMobileSearch, mobileS
             ))}
           </div>
 
-          <div className="flex items-center space-x-3 ml-2">
-            <MagneticButton className="w-10 h-10 rounded-full border border-gray-600 bg-[#2a2a2a] flex items-center justify-center cursor-pointer hover:border-white transition-colors" onClick={() => navigate('/profile')}>
-               <User className="w-5 h-5 text-gray-300 pointer-events-none" />
-            </MagneticButton>
-            <MagneticButton className="w-10 h-10 rounded-full border border-transparent flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors" onClick={() => setShowSettings(true)}>
-               <Settings className="w-5 h-5 text-gray-300 pointer-events-none" />
-            </MagneticButton>
+          <div className="w-10 h-10 rounded-full border border-gray-600 bg-[#2a2a2a] flex items-center justify-center cursor-pointer hover:border-white transition-colors" onClick={() => setShowSettings(true)}>
+             <User className="w-5 h-5 text-gray-300" />
           </div>
         </div>
 
@@ -326,30 +189,6 @@ function Navbar({ onSearch, activeTab, setActiveTab, toggleMobileSearch, mobileS
                   </div>
                 </div>
              </div>
-
-             <div className="mt-8 p-6 bg-gradient-to-r from-netflix-red/20 to-purple-900/20 border border-netflix-red/30 rounded-xl relative overflow-hidden group">
-               <div className="absolute inset-0 bg-gradient-to-r from-netflix-red/0 via-white/5 to-netflix-red/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-               {deferredPrompt ? (
-                 <div className="relative flex flex-col items-center">
-                   <div className="w-12 h-12 bg-netflix-red rounded-full flex items-center justify-center mb-4 shadow-[0_0_15px_rgba(229,9,20,0.5)]">
-                     <Download className="w-6 h-6 text-white" />
-                   </div>
-                   <h3 className="text-white font-bold text-lg mb-1">Get the Netphlix App</h3>
-                   <p className="text-gray-400 text-sm text-center mb-4">Install our PWA for the best experience, offline access, and faster loading!</p>
-                   <button onClick={handleInstall} className="w-full bg-white text-black font-bold py-3 rounded-full hover:scale-105 transition-transform shadow-lg">
-                     Install Now
-                   </button>
-                 </div>
-               ) : (
-                 <div className="relative flex flex-col items-center">
-                   <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mb-4 border border-green-500/50">
-                     <Check className="w-6 h-6 text-green-500" />
-                   </div>
-                   <h3 className="text-white font-bold text-lg mb-1">App Installed</h3>
-                   <p className="text-gray-400 text-sm text-center">You are currently running the optimized web app experience.</p>
-                 </div>
-               )}
-             </div>
              
              <div className="mt-8 pt-6 border-t border-gray-800 flex justify-end">
                 <button onClick={() => setShowSettings(false)} className="bg-netflix-red text-white px-6 py-2 rounded font-bold hover:bg-red-700 transition">Done</button>
@@ -368,7 +207,7 @@ function Navbar({ onSearch, activeTab, setActiveTab, toggleMobileSearch, mobileS
             <Search className={`w-6 h-6 ${mobileSearchOpen ? 'text-white' : ''}`} />
             <span className="text-[10px] mt-1">Search</span>
          </div>
-         <div className="flex flex-col items-center cursor-pointer text-gray-400 hover:text-white transition" onClick={() => navigate('/profile')}>
+         <div className="flex flex-col items-center cursor-pointer text-gray-400 hover:text-white transition" onClick={() => handleTabClick('My List')}>
             <Plus className="w-6 h-6" />
             <span className="text-[10px] mt-1">My List</span>
          </div>
@@ -377,12 +216,11 @@ function Navbar({ onSearch, activeTab, setActiveTab, toggleMobileSearch, mobileS
   );
 }
 
-function Hero({ movie, trending = [], onSelect }) {
+function Hero({ movie }) {
   const [trailerKey, setTrailerKey] = useState(null);
   const [isMuted, setIsMuted] = useState(true);
   const [videoEnded, setVideoEnded] = useState(false);
   const [bgColor, setBgColor] = useState('rgba(20,20,20,1)');
-  const [details, setDetails] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -403,12 +241,6 @@ function Hero({ movie, trending = [], onSelect }) {
 
     async function fetchTrailer() {
       const mediaType = getMediaType(movie);
-      
-      try {
-        const detailsRes = await fetch(`${BASE_URL}/${mediaType}/${movie.id}?api_key=${API_KEY}`).then(r => r.json());
-        setDetails(detailsRes);
-      } catch(e) { console.error(e); }
-
       const url = `${BASE_URL}/${mediaType}/${movie.id}/videos?api_key=${API_KEY}`;
       try {
         const res = await fetch(url).then(r => r.json());
@@ -446,14 +278,7 @@ function Hero({ movie, trending = [], onSelect }) {
       ></div>
 
       <div className="absolute inset-0 w-full h-full z-0">
-        <div className={`w-full h-full animate-in fade-in duration-1000 ${trailerKey && !videoEnded ? 'md:hidden' : ''}`}>
-           <picture>
-             <source media="(min-width: 768px)" srcSet={`${IMAGE_BASE_URL}${movie?.backdrop_path || movie?.poster_path}`} />
-             <img src={`${IMAGE_BASE_URL_W500}${movie?.poster_path || movie?.backdrop_path}`} alt="Hero Banner" className="w-full h-full object-cover object-center md:object-top" />
-           </picture>
-        </div>
-        
-        {trailerKey && !videoEnded && (
+        {trailerKey && !videoEnded ? (
           <div className="relative w-full h-[140%] -top-[20%] pointer-events-none hidden md:block">
             <iframe
               src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
@@ -465,6 +290,11 @@ function Hero({ movie, trending = [], onSelect }) {
               }}
             ></iframe>
           </div>
+        ) : (
+          <div 
+            className="w-full h-full bg-cover bg-center md:bg-top animate-in fade-in duration-1000"
+            style={{ backgroundImage: `url("${IMAGE_BASE_URL}${movie?.backdrop_path || movie?.poster_path}")` }}
+          />
         )}
       </div>
 
@@ -478,71 +308,44 @@ function Hero({ movie, trending = [], onSelect }) {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 50 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="absolute inset-y-0 left-0 px-4 md:ml-12 w-full md:max-w-2xl z-20 flex flex-col items-center md:items-start justify-center text-center md:text-left pt-20 md:pt-24 pb-12"
+          className="absolute bottom-[20%] md:top-[35%] px-4 md:ml-12 w-full md:max-w-2xl z-20 flex flex-col items-center md:items-start text-center md:text-left"
         >
           <div className="flex items-center justify-center md:justify-start space-x-2 mb-2 md:mb-4">
             <div className="flex items-center justify-center w-5 h-5 md:w-6 md:h-6 bg-[#E50914] text-white font-black text-[10px] md:text-xs rounded-sm shadow-lg">1S</div>
             <span className="text-gray-300 text-[10px] md:text-xs font-bold tracking-[0.2em]">{isTV ? 'SERIES' : 'FILM'}</span>
           </div>
         
-        <h1 className="text-5xl md:text-[75px] font-black font-sans uppercase text-white tracking-tighter mb-4 drop-shadow-2xl leading-[0.9] transition-all duration-700">
+        <h1 className="text-6xl md:text-[100px] font-medium font-display text-[#d8cba9] tracking-tight mb-4 md:mb-6 drop-shadow-2xl leading-[0.9] transition-all duration-700">
           {movie?.title || movie?.name || movie?.original_name}
         </h1>
         
-        <div className="hidden md:flex items-center space-x-3 mb-6">
-           <div className="flex items-center space-x-1.5 bg-[#222]/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium">
-             <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-             <span className="text-white">{movie?.vote_average ? movie.vote_average.toFixed(1) : 'NR'}</span>
-           </div>
-           {details?.runtime && (
-             <div className="bg-[#222]/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium text-white">
-               {Math.floor(details.runtime / 60)}h {details.runtime % 60}m
-             </div>
-           )}
-           {details?.genres?.[0] && (
-             <div className="bg-[#222]/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium text-white">
-               {details.genres[0].name}
-             </div>
-           )}
+        <div className="hidden md:flex items-center space-x-4 mb-6 font-semibold">
+           <span className="text-green-500 font-bold drop-shadow-md">98% Match</span>
+           <span className="drop-shadow-md">{movie?.release_date?.substring(0,4) || movie?.first_air_date?.substring(0,4)}</span>
+           <span className="border border-white/50 bg-black/30 backdrop-blur-sm px-1.5 py-0.5 text-xs text-white rounded-sm drop-shadow-md">18+</span>
+           <span className="border border-white/50 bg-black/30 backdrop-blur-sm px-1.5 py-0.5 text-xs text-white rounded-sm drop-shadow-md">HD</span>
         </div>
 
-        <div className="hidden md:block mb-8 max-w-xl">
-          <p className="text-sm md:text-base text-gray-200 font-medium drop-shadow-2xl leading-snug line-clamp-3">
-            {movie?.overview}
-          </p>
-        </div>
+        <h1 className="hidden md:block text-base md:text-lg text-gray-200 font-medium drop-shadow-2xl mb-8 max-w-xl leading-snug">
+          {truncate(movie?.overview, 200)}
+        </h1>
         
-        <div className="flex space-x-4 w-full md:w-auto justify-center md:justify-start">
-          <MagneticButton 
+        <div className="flex space-x-3 w-full md:w-auto justify-center md:justify-start">
+          <button 
             onClick={onPlay}
-            className="w-12 h-12 md:w-14 md:h-14 bg-[#0A4191] rounded-full flex items-center justify-center hover:bg-blue-600 transition-all shadow-xl"
+            className="flex-1 md:flex-none flex items-center justify-center px-4 md:px-8 py-2 md:py-2.5 bg-white text-black font-bold rounded md:hover:bg-white/80 transition-all duration-200"
           >
-            <Play className="w-5 h-5 md:w-6 md:h-6 text-white fill-white ml-1 pointer-events-none" />
-          </MagneticButton>
-          <MagneticButton 
+            <Play className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 fill-current" /> Play
+          </button>
+          <button 
             onClick={onInfo}
-            className="flex items-center px-6 py-2 md:py-0 md:h-14 bg-[#0A4191]/40 text-white font-medium rounded-full border border-[#0A4191] hover:bg-[#0A4191]/60 transition-all backdrop-blur-md shadow-lg"
+            className="flex-1 md:flex-none flex items-center justify-center px-4 md:px-8 py-2 md:py-2.5 bg-[#6d6d6eb3] text-white font-bold rounded md:hover:bg-[#6d6d6e66] transition-all duration-300 backdrop-blur-sm hover:scale-105"
           >
-             <div className="w-4 h-4 border-2 border-white rounded-full flex items-center justify-center mr-2 pointer-events-none"><span className="text-[10px] font-bold">i</span></div>
-             <span className="pointer-events-none">See More</span>
-          </MagneticButton>
+            <Info className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3" /> Info
+          </button>
         </div>
         </motion.div>
       </AnimatePresence>
-
-      {trending?.length > 0 && (
-         <div className="absolute bottom-6 md:bottom-8 right-4 md:right-8 z-40 hidden md:flex space-x-3 overflow-x-auto scrollbar-hide max-w-[40vw] p-2">
-            {trending.slice(0, 6).map(m => (
-               <div 
-                 key={m.id} 
-                 onClick={() => onSelect && onSelect(m)}
-                 className={`flex-none w-32 aspect-video rounded-lg cursor-pointer overflow-hidden transition-all duration-300 shadow-xl border-2 ${movie?.id === m.id ? 'border-blue-500 scale-105 brightness-110' : 'border-white/10 opacity-60 hover:opacity-100 hover:border-white/30'}`}
-               >
-                  <img src={`${IMAGE_BASE_URL_W500}${m.backdrop_path}`} className="w-full h-full object-cover pointer-events-none" />
-               </div>
-            ))}
-         </div>
-      )}
 
       {trailerKey && !videoEnded && (
         <div className="hidden md:flex absolute bottom-32 right-12 z-30 items-center space-x-4">
@@ -561,51 +364,36 @@ function Hero({ movie, trending = [], onSelect }) {
   );
 }
 
-const RowCard = React.memo(function RowCard({ movie, isLargeRow, isTop10, onNavigate, onRemove }) {
+function RowCard({ movie, isLargeRow, isTop10, onNavigate, onRemove }) {
   const [isHovered, setIsHovered] = useState(false);
   const [trailer, setTrailer] = useState(null);
-  const cardRef = useRef(null);
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      onNavigate(movie, 'play');
-    }
-  };
 
   useEffect(() => {
     let timeout;
-    let abortController;
     if (isHovered) {
-      abortController = new AbortController();
       timeout = setTimeout(async () => {
          try {
            const type = getMediaType(movie);
-           const res = await fetch(`${BASE_URL}/${type}/${movie.id}/videos?api_key=${API_KEY}`, { signal: abortController.signal }).then(r => r.json());
+           const res = await fetch(`${BASE_URL}/${type}/${movie.id}/videos?api_key=${API_KEY}`).then(r => r.json());
            const t = res.results?.find(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
            if (t) setTrailer(t.key);
          } catch (e) {
-           if (e.name !== 'AbortError') console.log('Error fetching trailer for row card', e);
+           console.log('Error fetching trailer for row card', e);
          }
-      }, 700);
+      }, 700); // 700ms delay to prevent spamming API on quick hover
     } else {
       setTrailer(null);
     }
-    return () => {
-      clearTimeout(timeout);
-      if (abortController) abortController.abort();
-    };
+    return () => clearTimeout(timeout);
   }, [isHovered, movie.id]);
 
   const ratingColor = movie.vote_average >= 8 ? 'ring-green-400' : movie.vote_average >= 6 ? 'ring-yellow-400' : 'ring-red-400';
 
   return (
     <motion.div 
-      ref={cardRef}
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
       whileHover={{ scale: 1.05, zIndex: 50 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`group/card relative flex-none cursor-pointer rounded-md overflow-visible bg-transparent focus:ring-4 focus:ring-white outline-none ${
+      className={`group/card relative flex-none cursor-pointer rounded-md overflow-visible bg-transparent ${
         isLargeRow ? 'w-32 md:w-48' : 'w-44 md:w-60'
       } z-10 origin-center snap-center flex flex-col gap-2`}
       onClick={() => onNavigate(movie, 'info')}
@@ -620,7 +408,7 @@ const RowCard = React.memo(function RowCard({ movie, isLargeRow, isTop10, onNavi
             allow="autoplay; encrypted-media"
           />
         ) : (
-          <LazyLoadImage effect="blur"
+          <img
             src={`${isLargeRow ? IMAGE_BASE_URL_W500 : IMAGE_BASE_URL}${isLargeRow ? movie.poster_path : (movie.backdrop_path || movie.poster_path)}`}
             alt={movie.title || movie.name}
             className="w-full h-full object-cover"
@@ -632,28 +420,6 @@ const RowCard = React.memo(function RowCard({ movie, isLargeRow, isTop10, onNavi
           <div className={`absolute top-2 left-2 w-8 h-8 rounded-full bg-[#111] flex items-center justify-center ring-2 ${ratingColor} shadow-black/50 shadow-md`}>
             <span className="text-white text-[10px] font-bold">{movie.vote_average.toFixed(1)}</span>
           </div>
-        )}
-
-        {isLargeRow && !isTop10 && (
-          <div className="absolute bottom-0 left-0 right-0 bg-blue-600 text-white text-center py-1 font-semibold text-[9px] uppercase tracking-wider flex items-center justify-center z-20 shadow-lg shadow-black/50">
-            Most Viewed on NETPHLIX <Star className="w-2.5 h-2.5 ml-1 fill-white" />
-          </div>
-        )}
-
-        {onRemove && (
-          <MagneticButton 
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition border border-white/20 z-50"
-          >
-            <X className="w-4 h-4 pointer-events-none" />
-          </MagneticButton>
-        )}
-
-        {/* Continue watching progress bar */}
-        {movie.progress && (
-           <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-600 z-50">
-              <div className="h-full bg-netflix-red" style={{ width: `${movie.progress}%` }}></div>
-           </div>
         )}
       </div>
 
@@ -675,17 +441,17 @@ const RowCard = React.memo(function RowCard({ movie, isLargeRow, isTop10, onNavi
             animate={isHovered ? { height: 'auto', opacity: 1, marginTop: 8 } : { height: 0, opacity: 0, marginTop: 0 }}
             className="overflow-hidden"
           >
-            <MagneticButton className="w-full bg-white/10 hover:bg-netflix-red text-white text-xs font-bold py-1.5 rounded-full transition-colors flex items-center justify-center">
-              <span className="pointer-events-none flex items-center">Details <ChevronRight className="w-3 h-3 ml-1" /></span>
-            </MagneticButton>
+            <button className="w-full bg-white/10 hover:bg-netflix-red text-white text-xs font-bold py-1.5 rounded-full transition-colors flex items-center justify-center">
+              Details <ChevronRight className="w-3 h-3 ml-1" />
+            </button>
           </motion.div>
         </div>
       )}
     </motion.div>
   );
-});
+}
 
-function Row({ title, icon: Icon, fetchUrl, isLargeRow, isTop10, moviesArray, onRemove, filterUpcoming, filterReleased }) {
+function Row({ title, fetchUrl, isLargeRow, isTop10, moviesArray, onRemove }) {
   const [movies, setMovies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const rowRef = useRef(null);
@@ -697,28 +463,16 @@ function Row({ title, icon: Icon, fetchUrl, isLargeRow, isTop10, moviesArray, on
       setIsLoading(false);
       return;
     }
-    const abortController = new AbortController();
     async function fetchData() {
       if (!fetchUrl) return;
       try {
-        const request = await fetch(fetchUrl, { signal: abortController.signal }).then(res => res.json());
-        let results = request.results || [];
-        const now = new Date();
-        if (filterUpcoming) {
-          results = results.filter(m => new Date(m.release_date || m.first_air_date) > now);
-        }
-        if (filterReleased) {
-          results = results.filter(m => new Date(m.release_date || m.first_air_date) <= now);
-        }
-        setMovies(results);
-      } catch (err) {
-        if (err.name !== 'AbortError') console.error('Fetch error:', err);
+        const request = await fetch(fetchUrl).then(res => res.json());
+        setMovies(request.results || []);
       } finally {
         setIsLoading(false);
       }
     }
     fetchData();
-    return () => abortController.abort();
   }, [fetchUrl, moviesArray]);
 
   const handleScroll = (direction) => {
@@ -741,13 +495,10 @@ function Row({ title, icon: Icon, fetchUrl, isLargeRow, isTop10, moviesArray, on
   if (isLoading) {
     return (
       <div className="pl-4 md:pl-12 my-6">
-        <div className="w-48 h-6 rounded shimmer mb-3 z-20 relative"></div>
-        <div className="flex space-x-2 overflow-hidden py-4">
+        <div className="w-48 h-6 rounded shimmer mb-3"></div>
+        <div className="flex space-x-2">
            {[...Array(6)].map((_, i) => (
-             <div key={i} className={`flex-none rounded ${isLargeRow ? 'w-32 md:w-48 aspect-[2/3]' : 'w-44 md:w-60 aspect-video'} flex items-center relative z-10`}>
-               {isTop10 && <span className="absolute left-[-20px] bottom-[-30px] text-[150px] md:text-[220px] font-black leading-none select-none tracking-tighter z-0 opacity-50" style={{ WebkitTextStroke: '2px #333', color: 'transparent' }}>{i + 1}</span>}
-               <div className="w-full h-full shimmer rounded-lg z-10 opacity-70"></div>
-             </div>
+             <div key={i} className={`flex-none rounded shimmer ${isLargeRow ? 'w-28 md:w-44 aspect-[2/3]' : 'w-40 md:w-[280px] aspect-video'}`}></div>
            ))}
         </div>
       </div>
@@ -765,50 +516,37 @@ function Row({ title, icon: Icon, fetchUrl, isLargeRow, isTop10, moviesArray, on
       className="pl-4 md:pl-12 my-4 md:my-6 group relative z-20"
     >
       {isTop10 ? (
-        <div className="flex items-center mb-6 md:mb-10 cursor-pointer w-max pl-4 md:pl-8 group/title">
-          <h2 className="text-7xl md:text-[140px] font-bold text-transparent leading-none tracking-tighter" style={{ WebkitTextStroke: '1px #555' }}>
+        <div className="flex items-center mb-6 md:mb-10 cursor-pointer w-max pl-4 md:pl-8">
+          <h2 className="text-6xl md:text-[100px] font-black text-transparent leading-none tracking-tighter" style={{ WebkitTextStroke: '2px #555' }}>
             TOP 10
           </h2>
-          <div className="ml-4 md:ml-6 flex flex-col text-sm md:text-2xl tracking-[0.4em] text-gray-300 font-light uppercase mt-2 md:mt-4">
-            <span>{title.toLowerCase().includes('shows') ? 'SHOWS' : 'MOVIES'}</span>
-            <span>TODAY</span>
+          <div className="ml-4 flex flex-col text-sm md:text-xl tracking-[0.3em] text-gray-300 font-bold uppercase mt-2">
+            <span>Movies</span>
+            <span>Today</span>
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between mb-4 md:mb-6 pr-4 md:pr-12 group/title">
-          <div className="flex items-center cursor-pointer">
-            {Icon && <Icon className="w-6 h-6 md:w-8 md:h-8 mr-3 text-white" />}
-            <h2 className="text-gray-100 text-xl md:text-3xl font-display font-bold tracking-tight">{title}</h2>
-            {!moviesArray && (
-              <span 
-                onClick={() => navigate(`/category/${encodeURIComponent(title)}`, { state: { fetchUrl } })}
-                className="text-blue-500 font-medium text-sm ml-4 mt-1 hover:text-blue-400 transition hidden md:block"
-              >
-                View all
-              </span>
-            )}
-          </div>
-          <div className="hidden md:flex items-center space-x-2">
-            <button onClick={() => handleScroll('left')} className="p-2 bg-transparent hover:bg-white/10 rounded-full transition"><ChevronLeft className="w-6 h-6 text-gray-400 hover:text-white" /></button>
-            <button onClick={() => handleScroll('right')} className="p-2 bg-transparent hover:bg-white/10 rounded-full transition"><ChevronRight className="w-6 h-6 text-gray-400 hover:text-white" /></button>
-          </div>
+        <div className="flex items-center mb-2 md:mb-4 cursor-pointer group/title w-max">
+          <h2 className="text-gray-100 text-xl md:text-3xl font-display font-bold tracking-tight">{title}</h2>
+          {!moviesArray && (
+            <span className="text-netflix-red font-bold text-xs ml-4 opacity-0 group-hover/title:opacity-100 transition-all hidden md:flex items-center hover:underline">
+              View all
+            </span>
+          )}
         </div>
       )}
 
       <div className="relative">
         <div 
+          className="hidden md:flex absolute left-0 top-0 bottom-0 w-12 bg-black/60 z-50 items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all hover:bg-black/80 hover:w-14 -ml-12"
+          onClick={() => handleScroll('left')}
+        >
+          <ChevronLeft className="text-white w-8 h-8 hover:scale-125 transition-transform" />
+        </div>
+
+        <div 
           ref={rowRef}
-          onKeyDown={(e) => {
-             if (e.key === 'ArrowRight') {
-                e.preventDefault();
-                handleScroll('right');
-             } else if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                handleScroll('left');
-             }
-          }}
-          className="flex overflow-x-scroll md:overflow-x-hidden md:hover:overflow-x-scroll scrollbar-hide py-6 md:py-8 pr-4 md:pr-12 space-x-4 -ml-1 snap-x snap-mandatory focus:outline-none"
-          tabIndex={-1}
+          className="flex overflow-x-scroll md:overflow-x-hidden md:hover:overflow-x-scroll scrollbar-hide py-6 md:py-8 pr-4 md:pr-12 space-x-4 -ml-1 snap-x snap-mandatory"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {movies.slice(0, isTop10 ? 10 : movies.length).map((movie, index) => (
@@ -833,6 +571,12 @@ function Row({ title, icon: Icon, fetchUrl, isLargeRow, isTop10, moviesArray, on
           ))}
         </div>
 
+        <div 
+          className="hidden md:flex absolute right-0 top-0 bottom-0 w-12 bg-black/60 z-50 items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all hover:bg-black/80 hover:w-14"
+          onClick={() => handleScroll('right')}
+        >
+          <ChevronRight className="text-white w-8 h-8 hover:scale-125 transition-transform" />
+        </div>
       </div>
     </motion.div>
   );
@@ -842,60 +586,20 @@ function SearchResults({ query }) {
   const [movies, setMovies] = useState([]);
   const [filterYear, setFilterYear] = useState('');
   const [filterRating, setFilterRating] = useState('');
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (query.length < 2) return;
-    
-    setMovies([]);
-    setPage(1);
-    setHasMore(true);
-
     async function searchMovies() {
-      setIsLoading(true);
-      const url = `${requests.fetchSearch}${encodeURIComponent(query)}&page=1`;
+      const url = `${requests.fetchSearch}${encodeURIComponent(query)}`;
       const req = await fetch(url).then(res => res.json());
       setMovies((req.results || []).filter(m => m.media_type !== 'person'));
-      if (req.page >= req.total_pages || !req.results || req.results.length === 0) setHasMore(false);
-      setIsLoading(false);
     }
     const delayDebounceFn = setTimeout(() => {
       searchMovies();
     }, 500);
     return () => clearTimeout(delayDebounceFn);
   }, [query]);
-
-  useEffect(() => {
-    if (query.length < 2 || page === 1 || !hasMore) return;
-    
-    async function fetchMore() {
-      setIsLoading(true);
-      const url = `${requests.fetchSearch}${encodeURIComponent(query)}&page=${page}`;
-      const req = await fetch(url).then(res => res.json());
-      setMovies(prev => {
-        const newMovies = (req.results || []).filter(m => m.media_type !== 'person');
-        const map = new Map(prev.map(m => [m.id, m]));
-        newMovies.forEach(m => map.set(m.id, m));
-        return Array.from(map.values());
-      });
-      if (req.page >= req.total_pages || !req.results || req.results.length === 0) setHasMore(false);
-      setIsLoading(false);
-    }
-    fetchMore();
-  }, [page, query]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000 && hasMore && !isLoading) {
-        setPage(prev => prev + 1);
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [hasMore, isLoading]);
 
   const filteredMovies = movies.filter(m => {
     if (filterYear) {
@@ -967,8 +671,7 @@ function SearchResults({ query }) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              whileHover={{ scale: 1.1, zIndex: 50, transition: { type: "spring", stiffness: 300, damping: 20 } }}
-              className="relative cursor-pointer rounded-lg overflow-hidden shadow-sm aspect-[2/3] group"
+              className="relative transition-all duration-300 md:hover:scale-110 md:hover:z-50 cursor-pointer rounded-lg overflow-hidden shadow-sm hover:shadow-[0_0_20px_rgba(0,0,0,0.8)] aspect-[2/3] group"
               onClick={() => navigate(`/title/${getMediaType(movie)}/${movie.id}`, { state: { movie } })}
             >
               <img
@@ -976,16 +679,11 @@ function SearchResults({ query }) {
                 alt={movie.title || movie.name}
                 className="w-full h-full object-cover rounded-lg"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                <Play className="w-10 h-10 text-white drop-shadow-lg self-center mb-auto mt-auto transform scale-50 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300" />
-                <h3 className="text-white font-bold text-sm line-clamp-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">{movie.title || movie.name}</h3>
-                <div className="flex items-center text-xs text-gray-300 space-x-2 mt-1 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
-                  <span className="text-green-400 font-bold">{movie.vote_average?.toFixed(1)} Stars</span>
-                  <span>{movie.release_date?.substring(0,4) || movie.first_air_date?.substring(0,4)}</span>
-                </div>
+              <div className="hidden md:flex absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 items-center justify-center backdrop-blur-[2px]">
+                <Play className="w-10 h-10 text-white drop-shadow-lg" />
               </div>
               {movie.vote_average > 0 && (
-                <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-md text-green-400 font-bold text-xs px-2 py-1 rounded shadow-lg border border-white/10 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
+                <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-md text-green-400 font-bold text-xs px-2 py-1 rounded shadow-lg border border-white/10">
                   {movie.vote_average.toFixed(1)}
                 </div>
               )}
@@ -1027,7 +725,6 @@ function InlineBanner({ movie }) {
 function Dashboard() {
   const [activeTab, setActiveTab] = useState('Home');
   const [featured, setFeatured] = useState(null);
-  const [trending, setTrending] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [genres, setGenres] = useState([]);
@@ -1052,7 +749,6 @@ function Dashboard() {
       const endpoint = activeTab === 'TV Shows' ? requests.fetchTrendingTV : requests.fetchTrendingMovies;
       const request = await fetch(endpoint).then(res => res.json());
       if (request.results?.length > 0) {
-        setTrending(request.results);
         setFeatured(request.results[Math.floor(Math.random() * request.results.length)]);
       }
     }
@@ -1074,10 +770,10 @@ function Dashboard() {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, scale: 0.98, y: 15 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 1.02, y: -15 }}
-      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
       className="min-h-screen bg-[#141414] pb-20 md:pb-0 flex flex-col"
     >
       <Navbar 
@@ -1102,7 +798,7 @@ function Dashboard() {
           </div>
         ) : (
           <>
-            <Hero movie={featured} trending={trending} onSelect={setFeatured} />
+            <Hero movie={featured} />
             
             {/* Genre Filter */}
             {activeTab !== 'Home' && (
@@ -1149,9 +845,8 @@ function Dashboard() {
                 </>
               ) : (
                 <>
-                  <Row title="Now Playing" icon={Radio} fetchUrl={requests.fetchNowPlayingMovies} isLargeRow filterReleased />
-                  <Row title="Upcoming" icon={Calendar} fetchUrl={requests.fetchUpcomingMovies} isLargeRow filterUpcoming />
                   <Row title="TOP 10 SHOWS TODAY" fetchUrl={requests.fetchTrendingTV} isLargeRow isTop10 />
+                  <Row title="Trending Movies" fetchUrl={requests.fetchTrendingMovies} />
                   {featured && <InlineBanner movie={featured} />}
                   <Row title="Trending TV Shows" fetchUrl={requests.fetchTrendingTV} />
                   <Row title="Action Movies" fetchUrl={requests.fetchActionMovies} />
@@ -1239,52 +934,6 @@ function StarRating({ rating, setRating }) {
   );
 }
 
-function Countdown({ targetDate }) {
-  const [timeLeft, setTimeLeft] = useState({});
-
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const difference = +new Date(targetDate) - +new Date();
-      let timeLeft = {};
-
-      if (difference > 0) {
-        timeLeft = {
-          month: Math.floor(difference / (1000 * 60 * 60 * 24 * 30.44)),
-          days: Math.floor((difference / (1000 * 60 * 60 * 24)) % 30.44),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          min: Math.floor((difference / 1000 / 60) % 60),
-          sec: Math.floor((difference / 1000) % 60),
-        };
-      }
-      return timeLeft;
-    };
-
-    setTimeLeft(calculateTimeLeft());
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [targetDate]);
-
-  const pad = (num) => String(num).padStart(2, '0');
-
-  if (Object.keys(timeLeft).length === 0) return null;
-
-  return (
-    <div className="flex space-x-2 md:space-x-4 mb-8">
-      {['month', 'days', 'hours', 'min', 'sec'].map(interval => (
-        <div key={interval} className="flex flex-col items-center bg-[#222]/80 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.5)] min-w-[70px] md:min-w-[90px]">
-          <span className="text-4xl md:text-5xl font-display font-light tracking-wider text-white">
-            {pad(timeLeft[interval] || 0)}
-          </span>
-          <span className="text-[10px] md:text-xs uppercase tracking-widest text-gray-400 mt-2 font-bold">{interval}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function TitlePage() {
   const { type, id } = useParams();
   const navigate = useNavigate();
@@ -1297,26 +946,9 @@ function TitlePage() {
   const [selectedPerson, setSelectedPerson] = useState(null);
   
   const [myList, setMyList] = useLocalStorage('netphlix_myList', []);
-  const [likedMovies, setLikedMovies] = useLocalStorage('netphlix_liked', []);
   const [personalRatings, setPersonalRatings] = useLocalStorage('netphlix_ratings', {});
   const currentRating = personalRatings[id] || 0;
   const inList = myList.some(m => m.id === parseInt(id));
-  const isLiked = likedMovies.some(m => m.id === parseInt(id));
-
-  const toggleLike = () => {
-    if (isLiked) {
-      setLikedMovies(prev => prev.filter(m => m.id !== parseInt(id)));
-    } else {
-      setLikedMovies(prev => [{
-        id: parseInt(id),
-        title: details.title || details.name,
-        name: details.title || details.name,
-        media_type: type,
-        poster_path: details.poster_path,
-        backdrop_path: details.backdrop_path
-      }, ...prev]);
-    }
-  };
 
   const handleRating = (value) => {
     setPersonalRatings(prev => ({...prev, [id]: value}));
@@ -1404,7 +1036,7 @@ function TitlePage() {
   const trailer = details.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube');
   const castList = details.credits?.cast?.slice(0, 5) || [];
   const genres = details.genres?.map(g => g.name).join(', ') || 'Unknown';
-  const runtime = details.runtime ? `${details.runtime} minutes (${Math.floor(details.runtime / 60)}h ${details.runtime % 60}m)` : 'TBA';
+  const runtime = details.runtime ? `${Math.floor(details.runtime / 60)}h ${details.runtime % 60}m` : '';
   const releaseYear = details.release_date?.substring(0,4) || details.first_air_date?.substring(0,4) || 'Unknown';
 
   const director = details.credits?.crew?.find(c => c.job === 'Director');
@@ -1416,20 +1048,19 @@ function TitlePage() {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, scale: 0.98, y: 15 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 1.02, y: -15 }}
-      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.6 }}
       className="min-h-screen bg-shows-dark text-white pb-20 md:pb-0 font-sans relative overflow-hidden"
     >
       <Navbar activeTab="" setActiveTab={() => navigate('/')} />
       
       {/* Background with Parallax */}
-      <div className="absolute top-0 left-0 w-full h-[100vh] z-0 pointer-events-none overflow-hidden bg-[#0a0a0a]">
-        <motion.img style={{ y: backgroundY }} src={`${IMAGE_BASE_URL}${details.backdrop_path}`} className="w-full h-[120%] -top-[10%] relative object-cover opacity-50 transition-opacity duration-500" alt="bg" />
-        <div className="absolute inset-0 bg-black/20 mix-blend-multiply"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-shows-dark via-shows-dark/60 via-20% to-transparent to-80%"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-shows-dark/80 via-shows-dark/20 to-transparent"></div>
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <motion.img style={{ y: backgroundY }} src={`${IMAGE_BASE_URL}${details.backdrop_path}`} className="w-full h-[130%] -top-[15%] relative object-cover opacity-20 blur-md" alt="bg" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/90 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-transparent to-transparent"></div>
       </div>
 
       <motion.div 
@@ -1440,8 +1071,8 @@ function TitlePage() {
       >
         
         {/* Left Column: Poster */}
-        <div className="w-full md:w-[300px] mx-auto lg:mx-0 flex-none z-20 pt-4">
-          <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-2xl shadow-black/80">
+        <div className="w-full md:w-[320px] mx-auto lg:mx-0 flex-none">
+          <div className="relative aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-white/5">
             <img src={`${IMAGE_BASE_URL_W500}${details.poster_path}`} className="w-full h-full object-cover" alt={details.title || details.name} />
             
             {details.vote_average > 0 && (
@@ -1451,21 +1082,17 @@ function TitlePage() {
             )}
             
             <div className="absolute bottom-0 left-0 right-0 bg-netflix-red text-white text-center py-3 font-bold text-xs tracking-wider uppercase">
-              Most Viewed on NETPHLIX ★
+              Most Viewed on NETPHLIX Γÿà
             </div>
           </div>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col">
-          {/* Top Info Area */}
-          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-            {/* Center Column: Details */}
-            <div className="flex-1 flex flex-col justify-start">
+        {/* Center Column: Details */}
+        <div className="flex-1 flex flex-col justify-center">
           {logo ? (
-            <img src={`${IMAGE_BASE_URL_W500}${logo}`} alt={details.title || details.name} className="w-full max-w-[400px] object-contain mb-6 drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] filter contrast-125" />
+            <img src={`${IMAGE_BASE_URL_W500}${logo}`} alt={details.title || details.name} className="w-full max-w-[500px] object-contain mb-8 md:mb-12 drop-shadow-2xl filter contrast-125" />
           ) : (
-            <h1 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-6 drop-shadow-2xl leading-none">
+            <h1 className="text-5xl md:text-8xl font-display font-bold text-white tracking-tight mb-8 md:mb-12 drop-shadow-2xl leading-none">
               {details.title || details.name}
             </h1>
           )}
@@ -1474,30 +1101,20 @@ function TitlePage() {
           {companies.filter(c => c.logo_path).length > 0 && (
             <div className="flex flex-wrap items-center gap-8 mb-10">
               {companies.filter(c => c.logo_path).slice(0, 4).map(c => (
-                <motion.div 
-                  key={c.id} 
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ duration: 0.3 }}
-                  className="relative group/logo cursor-pointer flex items-center justify-center"
-                >
-                  <img src={`${IMAGE_BASE_URL_W500}${c.logo_path}`} className="h-6 md:h-8 object-contain filter brightness-0 invert opacity-90 group-hover/logo:brightness-100 group-hover/logo:invert-0 group-hover/logo:opacity-100 transition-all duration-300 drop-shadow-md" alt={c.name} />
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/90 border border-white/10 text-white text-xs font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover/logo:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl z-50 backdrop-blur-sm">
-                    {c.name}
-                  </div>
-                </motion.div>
+                <img key={c.id} src={`${IMAGE_BASE_URL_W500}${c.logo_path}`} className="h-8 md:h-12 object-contain filter brightness-0 invert opacity-70" alt={c.name} />
               ))}
             </div>
           )}
 
-          <div className="flex flex-col space-y-2 text-gray-300 font-medium mb-6">
-            <div className="flex items-center text-[13px]"><Calendar className="w-4 h-4 mr-2 text-gray-400"/> {formattedDate} (United States)</div>
-            <div className="flex items-center text-[13px]"><Clock className="w-4 h-4 mr-2 text-gray-400"/> {runtime}</div>
+          <div className="flex flex-wrap items-center gap-6 text-gray-300 font-medium mb-8">
+            <div className="flex items-center text-sm md:text-base"><Calendar className="w-5 h-5 mr-3 text-gray-400"/> {formattedDate} (United States)</div>
+            {runtime && <div className="flex items-center text-sm md:text-base"><Clock className="w-5 h-5 mr-3 text-gray-400"/> {runtime}</div>}
           </div>
 
           {details.genres && (
-            <div className="flex flex-wrap gap-2 mb-8">
+            <div className="flex flex-wrap gap-3 mb-10">
               {details.genres.map(g => (
-                <span key={g.id} className="px-4 py-1.5 bg-white/5 rounded-full text-[12px] font-medium text-gray-300 border border-white/10 cursor-default">
+                <span key={g.id} className="px-5 py-2 bg-[#222] rounded-full text-sm font-semibold text-gray-200 border border-white/5 hover:bg-[#333] transition-colors cursor-default">
                   {g.name}
                 </span>
               ))}
@@ -1507,131 +1124,173 @@ function TitlePage() {
           {director && (
             <div className="flex items-center mb-12">
               {director.profile_path ? (
-                <img src={`${IMAGE_BASE_URL_W500}${director.profile_path}`} className="w-12 h-12 rounded-full mr-4 object-cover" alt={director.name} />
+                <img src={`${IMAGE_BASE_URL_W500}${director.profile_path}`} className="w-14 h-14 rounded-full mr-4 object-cover border-2 border-white/10" alt={director.name} />
               ) : (
-                <div className="w-12 h-12 rounded-full mr-4 bg-white/10 flex items-center justify-center"><User className="w-5 h-5 text-gray-400"/></div>
+                <div className="w-14 h-14 rounded-full mr-4 bg-[#222] flex items-center justify-center border-2 border-white/10"><User className="w-6 h-6 text-gray-500"/></div>
               )}
-              <div className="flex flex-col justify-center">
-                <p className="font-bold text-white text-base leading-none">{director.name}</p>
-                <p className="text-gray-400 text-xs mt-1 leading-none">Director</p>
+              <div>
+                <p className="font-bold text-white text-lg">{director.name}</p>
+                <p className="text-gray-400 text-sm">Director</p>
               </div>
             </div>
           )}
 
-          <div className="mb-6 mt-4">
-            <p className="text-xs font-bold text-gray-100 mb-3">Available on</p>
-            <div className="w-12 h-12 bg-[#01b4e4] rounded-lg flex items-center justify-center font-black text-[10px] leading-none text-[#0d253f] text-center shadow-lg">THE<br/>MOVIE<br/>DB</div>
+          <div className="flex flex-wrap gap-4 mb-10">
+            <button 
+              onClick={() => navigate(`/watch/${type}/${id}`)}
+              className="bg-netflix-red hover:bg-red-700 text-white px-10 py-4 rounded-full font-bold flex items-center transition shadow-[0_10px_20px_rgba(229,9,20,0.3)] hover:scale-105"
+            >
+              <Play className="w-5 h-5 mr-3 fill-current" /> Watch
+            </button>
+            <button 
+              className="bg-netflix-red hover:bg-red-700 text-white px-10 py-4 rounded-full font-bold flex items-center transition shadow-[0_10px_20px_rgba(229,9,20,0.3)] hover:scale-105"
+            >
+              <Download className="w-5 h-5 mr-3" /> Download
+            </button>
           </div>
 
-          {new Date(releaseDate) > new Date() && (
-            <Countdown targetDate={releaseDate} />
-          )}
+          <div className="flex items-center text-sm text-gray-400 mb-6 font-medium">
+            Available on 
+            <span className="font-bold text-netflix-red tracking-tight ml-2 border border-white/10 px-2 py-0.5 rounded bg-black/50">NETPHLIX</span>
+          </div>
 
-          <div className="flex flex-wrap gap-3 mb-12">
-            {new Date(releaseDate) <= new Date() && (
-              <button onClick={() => navigate(`/watch/${type}/${id}`)} className="flex items-center bg-netflix-red hover:bg-red-700 text-white rounded-full px-8 py-2.5 text-sm font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105">
-                <Play className="w-5 h-5 mr-2 fill-current" />
-                Play Now
-              </button>
-            )}
-            <button onClick={toggleMyList} className="flex items-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-5 py-2.5 text-sm font-semibold text-gray-200 transition-colors group">
-              <Bookmark className={`w-4 h-4 mr-2 ${inList ? 'fill-white text-white' : ''}`} />
-              {inList ? 'In Watchlist' : 'Watchlist'}
+          <div className="mb-6">
+            <p className="text-gray-400 text-sm mb-2">What did you think of {details.title || details.name}?</p>
+            <div className="flex space-x-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <motion.div key={i} whileHover={{ scale: 1.3 }} whileTap={{ scale: 0.8 }}>
+                  <Star className="w-6 h-6 text-gray-600 hover:text-yellow-500 cursor-pointer transition-colors" />
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-6 text-gray-400 text-xs font-semibold mb-12 uppercase tracking-wider">
+            <button className="flex flex-col items-center hover:text-white transition group">
+              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-2 group-hover:bg-white/10 transition">
+                <Heart className="w-5 h-5" />
+              </div>
+              Favorite
             </button>
-            <button onClick={toggleLike} className="flex items-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-5 py-2.5 text-sm font-semibold text-gray-200 transition-colors group">
-              <Calendar className={`w-4 h-4 mr-2 ${isLiked ? 'fill-white text-white' : ''}`} />
-              Reminder
+            <button className="flex flex-col items-center hover:text-white transition group">
+              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-2 group-hover:bg-white/10 transition">
+                <Bookmark className="w-5 h-5" />
+              </div>
+              Watchlist
             </button>
-            <button className="flex items-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-5 py-2.5 text-sm font-semibold text-gray-200 transition-colors group">
-              <Share2 className="w-4 h-4 mr-2" />
+            <button className="flex flex-col items-center hover:text-white transition group">
+              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-2 group-hover:bg-white/10 transition">
+                <Share2 className="w-5 h-5" />
+              </div>
               Share
             </button>
           </div>
 
+          <div className="mb-12">
+            <h3 className="text-2xl font-bold mb-4 font-display">Overview</h3>
+            <p className="text-gray-300 text-lg leading-relaxed">{details.overview}</p>
           </div>
 
-            {/* Right Column: Cast */}
-            <div className="w-full lg:w-[280px] flex-none">
-              <h3 className="text-lg font-bold mb-6 text-white font-display tracking-tight">Casts & Credits</h3>
+          {trailer && (
+            <div className="mb-12 relative w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-white/10 group cursor-pointer" onClick={() => navigate(`/watch/${type}/${id}`)}>
+              <img src={`${IMAGE_BASE_URL}${details.backdrop_path}`} className="w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                 <div className="w-20 h-20 bg-netflix-red rounded-full flex items-center justify-center shadow-lg shadow-red-500/50 group-hover:scale-110 transition-transform">
+                   <Play className="w-10 h-10 text-white ml-2 fill-current" />
+                 </div>
+              </div>
+              <div className="absolute bottom-6 left-0 right-0 text-center">
+                 <h2 className="text-4xl font-black text-white font-display drop-shadow-lg tracking-tighter uppercase">{details.title || details.name}</h2>
+                 <p className="text-gray-300 font-medium tracking-widest text-sm uppercase mt-1">Official Trailer</p>
+              </div>
+            </div>
+          )}
+
+          {details.reviews?.results?.length > 0 && (
+            <div className="mb-12">
+              <h3 className="text-2xl font-bold mb-6 font-display tracking-tight text-white">Reviews <span className="text-gray-500 text-sm">({details.reviews.results.length})</span></h3>
               <div className="flex flex-col space-y-4">
-                {castList.map(person => (
-                  <div key={person.id} className="flex items-center space-x-4 cursor-pointer group" onClick={() => setSelectedPerson(person.id)}>
-                    <div className="w-10 h-10 rounded-full overflow-hidden flex-none bg-white/5">
-                      {person.profile_path ? (
-                        <img src={`${IMAGE_BASE_URL_W500}${person.profile_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-300" alt={person.name} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center"><User className="w-4 h-4 text-gray-500" /></div>
-                      )}
+                {details.reviews.results.slice(0, 3).map(review => (
+                  <div key={review.id} className="bg-[#111] p-6 rounded-2xl border border-white/5 shadow-xl">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-netflix-red text-white flex items-center justify-center font-bold text-lg mr-3">
+                          {review.author.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-white leading-tight">{review.author}</p>
+                          <p className="text-gray-500 text-xs">{new Date(review.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="flex text-yellow-500 space-x-1">
+                        {[...Array(5)].map((_, i) => {
+                           const rating = review.author_details?.rating ? review.author_details.rating / 2 : 5;
+                           return <Star key={i} className={`w-4 h-4 ${i < rating ? 'fill-current' : 'text-gray-600'}`} />;
+                        })}
+                      </div>
                     </div>
-                    <div className="flex flex-col justify-center">
-                      <span className="font-bold text-[13px] text-gray-200 group-hover:text-white transition-colors leading-tight">{person.name}</span>
-                      <span className="text-[11px] text-gray-500 mt-0.5 leading-tight">{person.character}</span>
+                    <p className="text-gray-300 text-sm leading-relaxed line-clamp-4">{review.content}</p>
+                    <button className="text-netflix-red hover:text-red-400 text-sm mt-3 font-semibold transition-colors">Read more</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {similar?.length > 0 && (
+            <div className="mb-12">
+              <h3 className="text-2xl font-bold mb-6 font-display tracking-tight text-white">Recommendation & Similar</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {similar.slice(0, 8).map(movie => (
+                  <div 
+                    key={movie.id} 
+                    className="relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer group shadow-lg border border-white/5"
+                    onClick={() => {
+                      navigate(`/${movie.media_type || type}/${movie.id}`, { state: { movie } });
+                      window.scrollTo(0,0);
+                    }}
+                  >
+                    <img src={`${IMAGE_BASE_URL_W500}${movie.poster_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={movie.title || movie.name} />
+                    {movie.vote_average > 0 && (
+                      <div className="absolute top-2 left-2 w-8 h-8 bg-black/80 rounded-full flex items-center justify-center border border-white/20 shadow-lg">
+                        <span className="font-bold text-[10px] text-white">{movie.vote_average.toFixed(1)}</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                      <h4 className="text-white font-bold text-sm leading-tight text-center">{movie.title || movie.name}</h4>
                     </div>
                   </div>
                 ))}
-                <button className="text-blue-500 text-xs font-bold mt-2 flex items-center hover:text-blue-400 transition w-max">
-                  Show All <ChevronDown className="w-3 h-3 ml-1" />
-                </button>
               </div>
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Bottom Content Area (Aligned under logo) */}
-          <div className="mt-8 w-full max-w-4xl pb-20">
-            <div className="mb-12 pr-4 md:pr-12">
-              <h3 className="text-lg font-bold mb-4 font-display">Overview</h3>
-              <p className="text-gray-300 text-[13px] leading-relaxed">{details.overview}</p>
-            </div>
-
-            {trailer && (
-              <div className="mb-12 relative w-full max-w-2xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-white/10 group cursor-pointer mx-auto lg:mx-0" onClick={() => navigate(`/watch/${type}/${id}`)}>
-                <img src={`${IMAGE_BASE_URL}${details.backdrop_path}`} className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                   <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-white/30">
-                     <Play className="w-8 h-8 text-white ml-1 fill-current" />
-                   </div>
+        {/* Right Column: Cast */}
+        <div className="w-full lg:w-[300px] flex-none border-l border-white/5 lg:pl-10">
+          <h3 className="text-2xl font-bold mb-8 text-white font-display tracking-tight">Casts & Credits</h3>
+          <div className="flex flex-col space-y-6">
+            {castList.map(person => (
+              <div key={person.id} className="flex items-center space-x-4 cursor-pointer group" onClick={() => setSelectedPerson(person.id)}>
+                <div className="w-14 h-14 rounded-full overflow-hidden flex-none bg-[#222] border border-white/5 group-hover:border-white/30 transition-colors">
+                  {person.profile_path ? (
+                    <img src={`${IMAGE_BASE_URL_W500}${person.profile_path}`} className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all" alt={person.name} />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"><User className="w-6 h-6 text-gray-500" /></div>
+                  )}
                 </div>
-                <div className="absolute bottom-6 left-0 right-0 text-center pointer-events-none">
-                   <h2 className="text-xl md:text-2xl font-black text-white font-display drop-shadow-lg tracking-tight">{details.title || details.name}</h2>
-                   <p className="text-gray-300 font-medium tracking-widest text-[10px] uppercase mt-1">Official Trailer</p>
-                </div>
-              </div>
-            )}
-
-            {similar?.length > 0 && (
-              <div className="mb-12">
-                <h3 className="text-lg font-bold mb-6 text-white font-display">Recommendation & Similar</h3>
-                <div className="flex flex-col space-y-3">
-                  {similar.slice(0, 4).map((movie, index) => (
-                    <div 
-                      key={movie.id} 
-                      className="flex bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 p-3 items-center transition-colors cursor-pointer group"
-                      onClick={() => {
-                        navigate(`/${movie.media_type || type}/${movie.id}`, { state: { movie } });
-                        window.scrollTo(0,0);
-                      }}
-                    >
-                      <span className="text-gray-500 font-bold px-4 md:px-6">{index + 1}</span>
-                      <img src={`${IMAGE_BASE_URL_W500}${movie.poster_path}`} className="w-12 h-20 md:w-16 md:h-24 rounded object-cover shadow-md group-hover:shadow-lg transition-shadow" alt={movie.title || movie.name} />
-                      <div className="ml-4 flex-1">
-                        <h4 className="font-bold text-white text-[13px] md:text-sm mb-1">{movie.title || movie.name}</h4>
-                        <div className="flex items-center text-[11px] text-gray-400 space-x-3">
-                          {movie.vote_average > 0 && (
-                            <span className="flex items-center text-yellow-500"><Star className="w-3 h-3 mr-1 fill-current" /> {movie.vote_average.toFixed(1)}</span>
-                          )}
-                          <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px] text-gray-300">{movie.release_date ? movie.release_date.substring(0, 4) : 'N/A'}</span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-400 max-w-[260px] md:max-w-md line-clamp-2 hidden sm:block pl-6 pr-4">
-                        {movie.overview}
-                      </p>
-                    </div>
-                  ))}
+                <div className="flex flex-col">
+                  <span className="font-bold text-sm text-gray-200 group-hover:text-white transition-colors">{person.name}</span>
+                  <span className="text-xs text-gray-500">{person.character}</span>
                 </div>
               </div>
-            )}
+            ))}
+            <button className="text-netflix-red text-sm font-bold mt-2 flex items-center hover:text-white transition w-max">
+              Show All <ChevronDown className="w-4 h-4 ml-1" />
+            </button>
           </div>
-      </div>
+        </div>
+
       </motion.div>
       <Footer />
     </motion.div>
@@ -1640,7 +1299,7 @@ function TitlePage() {
 
 import Hls from 'hls.js';
 
-const CustomPlayer = ({ url, title, onBack, externalCaptions = [], hasNextEpisode, onNextEpisode, onProgress }) => {
+const CustomPlayer = ({ url, title, onBack, externalCaptions = [], hasNextEpisode, onNextEpisode }) => {
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [played, setPlayed] = useState(0);
@@ -1672,7 +1331,6 @@ const CustomPlayer = ({ url, title, onBack, externalCaptions = [], hasNextEpisod
   const controlsTimeoutRef = useRef(null);
   const lastTapRef = useRef(0);
   const wakeLockRef = useRef(null);
-  const lastProgressUpdateRef = useRef(-1);
 
   useEffect(() => {
     if (playing && 'wakeLock' in navigator) {
@@ -1967,15 +1625,7 @@ const CustomPlayer = ({ url, title, onBack, externalCaptions = [], hasNextEpisod
         ref={playerRef}
         playsInline
         className="w-full h-full object-contain cursor-pointer"
-        onTimeUpdate={(e) => {
-          const p = e.target.currentTime / e.target.duration || 0;
-          setPlayed(p);
-          const currentSec = Math.floor(e.target.currentTime);
-          if (onProgress && currentSec % 5 === 0 && currentSec !== lastProgressUpdateRef.current) {
-              lastProgressUpdateRef.current = currentSec;
-              onProgress(p * 100);
-          }
-        }}
+        onTimeUpdate={(e) => setPlayed(e.target.currentTime / e.target.duration || 0)}
         onDurationChange={(e) => setDuration(e.target.duration)}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
@@ -2428,10 +2078,10 @@ function WatchPage() {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, scale: 0.98, y: 15 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 1.02, y: -15 }}
-      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 1.05 }}
+      transition={{ duration: 0.5 }}
       className="min-h-screen bg-[#141414] text-white pb-20 md:pb-0"
     >
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -2452,9 +2102,6 @@ function WatchPage() {
                   title={`${details?.title || details?.name || 'Video'} ${type === 'tv' ? `(S${season} E${episode})` : ''}`}
                   onBack={() => navigate(-1)}
                   externalCaptions={nativeCaptions}
-                  onProgress={(progress) => {
-                     setWatchHistory(prev => prev.map(m => m.id === parseInt(id) ? { ...m, progress } : m));
-                  }}
                />
             ) : useAdfree ? (
                <div className="w-full h-full flex flex-col items-center justify-center bg-[#0a0a0a]">
@@ -2482,7 +2129,7 @@ function WatchPage() {
             </h1>
             {type === 'tv' && currentEpData && (
               <p className="text-[var(--accent-color)] font-bold text-sm md:text-base mt-1">
-                 Season {season} Episode {episode} <span className="text-gray-500 mx-2">•</span> <span className="text-gray-300">{currentEpData.name}</span>
+                 Season {season} Episode {episode} <span className="text-gray-500 mx-2">ΓÇó</span> <span className="text-gray-300">{currentEpData.name}</span>
               </p>
             )}
          </div>
@@ -2630,194 +2277,41 @@ function WatchPage() {
   );
 }
 
-function ProfilePage() {
-  const [myList, setMyList] = useLocalStorage('netphlix_myList', []);
-  const [likedMovies, setLikedMovies] = useLocalStorage('netphlix_liked', []);
-  const navigate = useNavigate();
-
-  const removeFromList = (id) => {
-    setMyList(prev => prev.filter(m => m.id !== id));
-  };
-  const removeFromLiked = (id) => {
-    setLikedMovies(prev => prev.filter(m => m.id !== id));
-  };
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.98, y: 15 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 1.02, y: -15 }}
-      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-      className="min-h-screen bg-shows-dark text-white pt-32 px-4 md:px-12 pb-20"
-    >
-      <Navbar activeTab="" setActiveTab={() => navigate('/')} />
-      <div className="container mx-auto">
-         <div className="flex items-center mb-12">
-            <div className="w-20 h-20 bg-[#2a2a2a] rounded-full border border-gray-600 flex items-center justify-center mr-6 shadow-xl">
-               <User className="w-10 h-10 text-gray-300" />
-            </div>
-            <div>
-               <h1 className="text-3xl md:text-5xl font-display font-bold tracking-tight">My Profile</h1>
-               <p className="text-gray-400 mt-2">Manage your watchlist and liked movies</p>
-            </div>
-         </div>
-         
-         <div className="mb-16">
-            <h2 className="text-2xl md:text-3xl font-display font-bold mb-6 flex items-center">
-               <Bookmark className="w-6 h-6 mr-3 text-netflix-red" /> My Watchlist <span className="ml-3 text-gray-500 text-lg">({myList.length})</span>
-            </h2>
-            {myList.length > 0 ? (
-               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                 {myList.map(movie => (
-                    <div key={movie.id} className="w-full flex justify-center">
-                      <RowCard movie={movie} isLargeRow={true} isTop10={false} onNavigate={(m, action) => {
-                        const mediaType = m.name ? 'tv' : 'movie';
-                        if (action === 'play') navigate(`/watch/${mediaType}/${m.id}`);
-                        else navigate(`/title/${mediaType}/${m.id}`, { state: { movie: m } });
-                      }} onRemove={() => removeFromList(movie.id)} />
-                    </div>
-                 ))}
-               </div>
-            ) : (
-               <div className="bg-[#111] border border-white/5 p-8 rounded-xl text-center">
-                  <Bookmark className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">Your watchlist is empty.</p>
-                  <button onClick={() => navigate('/')} className="mt-4 bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full transition text-sm font-semibold">Explore Movies</button>
-               </div>
-            )}
-         </div>
-
-         <div className="mb-16">
-            <h2 className="text-2xl md:text-3xl font-display font-bold mb-6 flex items-center">
-               <ThumbsUp className="w-6 h-6 mr-3 text-netflix-red" /> Liked Movies <span className="ml-3 text-gray-500 text-lg">({likedMovies.length})</span>
-            </h2>
-            {likedMovies.length > 0 ? (
-               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                 {likedMovies.map(movie => (
-                    <div key={movie.id} className="w-full flex justify-center">
-                      <RowCard movie={movie} isLargeRow={true} isTop10={false} onNavigate={(m, action) => {
-                        const mediaType = m.name ? 'tv' : 'movie';
-                        if (action === 'play') navigate(`/watch/${mediaType}/${m.id}`);
-                        else navigate(`/title/${mediaType}/${m.id}`, { state: { movie: m } });
-                      }} onRemove={() => removeFromLiked(movie.id)} />
-                    </div>
-                 ))}
-               </div>
-            ) : (
-               <div className="bg-[#111] border border-white/5 p-8 rounded-xl text-center">
-                  <ThumbsUp className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">You haven't liked anything yet.</p>
-               </div>
-            )}
-         </div>
-      </div>
-      <Footer />
-    </motion.div>
-  );
-}
-
-function CategoryPage() {
-  const { title } = useParams();
-  const location = useLocation();
-  const fetchUrl = location.state?.fetchUrl;
-  const [movies, setMovies] = useState([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    window.scrollTo(0,0);
-    if (!fetchUrl) return;
-    
-    setMovies([]);
-    setPage(1);
-    setHasMore(true);
-
-    async function fetchInitial() {
-      setIsLoading(true);
-      const separator = fetchUrl.includes('?') ? '&' : '?';
-      const url = `${fetchUrl}${separator}page=1`;
-      const req = await fetch(url).then(r=>r.json());
-      setMovies(req.results || []);
-      if (req.page >= req.total_pages || !req.results || req.results.length === 0) setHasMore(false);
-      setIsLoading(false);
-    }
-    fetchInitial();
-  }, [fetchUrl]);
-
-  useEffect(() => {
-    if (!fetchUrl || page === 1 || !hasMore) return;
-
-    async function fetchMore() {
-      setIsLoading(true);
-      const separator = fetchUrl.includes('?') ? '&' : '?';
-      const url = `${fetchUrl}${separator}page=${page}`;
-      const req = await fetch(url).then(r=>r.json());
-      setMovies(prev => {
-        const newMovies = req.results || [];
-        const map = new Map(prev.map(m => [m.id, m]));
-        newMovies.forEach(m => map.set(m.id, m));
-        return Array.from(map.values());
-      });
-      if (req.page >= req.total_pages || !req.results || req.results.length === 0) setHasMore(false);
-      setIsLoading(false);
-    }
-    fetchMore();
-  }, [page, fetchUrl]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000 && hasMore && !isLoading) {
-        setPage(prev => prev + 1);
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [hasMore, isLoading]);
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.98, y: 15 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 1.02, y: -15 }}
-      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-      className="min-h-screen bg-shows-dark text-white pt-32 px-4 md:px-12 pb-20"
-    >
-      <Navbar activeTab="" setActiveTab={() => navigate('/')} />
-      <h1 className="text-3xl md:text-5xl font-display font-bold mb-10 tracking-tight">{decodeURIComponent(title)}</h1>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-        {movies.map(movie => (
-           <div key={movie.id} className="w-full flex justify-center">
-             <RowCard movie={movie} isLargeRow={true} isTop10={false} onNavigate={(m, action) => {
-               const mediaType = m.name ? 'tv' : 'movie';
-               if (action === 'play') navigate(`/watch/${mediaType}/${m.id}`);
-               else navigate(`/title/${mediaType}/${m.id}`, { state: { movie: m } });
-             }} />
-           </div>
-        ))}
-      </div>
-      <Footer />
-    </motion.div>
-  );
-}
-
 export default function App() {
   const [showLoader, setShowLoader] = useState(true);
   const [fadeLoader, setFadeLoader] = useState(false);
+  const [introStarted, setIntroStarted] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
+    if (!introStarted) return;
+    
+    // Play audio when user clicks the start button
+    const audio = new Audio('/netflix-tudum.mp3');
+    audio.play().catch(err => console.log('Audio autoplay prevented:', err));
+
     // The animation takes about 4.5 seconds to complete based on CSS.
     const fadeTimer = setTimeout(() => setFadeLoader(true), 3800);
     const removeTimer = setTimeout(() => setShowLoader(false), 4500);
     
     return () => { clearTimeout(fadeTimer); clearTimeout(removeTimer); };
-  }, []);
+  }, [introStarted]);
 
   return (
     <>
-      {showLoader && (
+      {showLoader && !introStarted && (
+        <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center">
+          <button 
+             onClick={() => setIntroStarted(true)}
+             className="px-8 py-3 md:px-12 md:py-4 bg-[#E50914] text-white font-bold text-lg md:text-2xl rounded hover:bg-red-700 transition transform hover:scale-110 shadow-[0_0_25px_rgba(229,9,20,0.5)] animate-pulse"
+          >
+             Enter Netphlix
+          </button>
+          <p className="text-gray-500 mt-4 text-xs md:text-sm">Click to start cinematic experience</p>
+        </div>
+      )}
+      
+      {showLoader && introStarted && (
         <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-700 ${fadeLoader ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <NetflixIntro />
         </div>
@@ -2828,8 +2322,6 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/title/:type/:id" element={<TitlePage />} />
           <Route path="/watch/:type/:id" element={<WatchPage />} />
-          <Route path="/category/:title" element={<CategoryPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </AnimatePresence>
     </>

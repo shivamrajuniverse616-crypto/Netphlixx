@@ -26,3 +26,10 @@ dist-ssr
 # Environment variables
 .env
 .env.*
+
+# Videos
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.webm
