@@ -2282,23 +2282,50 @@ function WatchPage() {
         setStreamLoading(true);
         const url = `https://movie-scraper-gilt.vercel.app/api?tmdb=${id}${type === 'tv' ? `&s=${season}&e=${episode}` : ''}`;
         
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        if (data.success && data.streams && data.streams.length > 0) {
-            setAvailableStreams(data.streams);
+        let allStreams = [];
+        let allCaptions = [];
+
+        try {
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.success && data.streams) {
+            allStreams = [...data.streams];
+            allCaptions = data.captions || [];
+          }
+        } catch(err) {
+          console.error("Error fetching primary stream API:", err);
+        }
+
+        // Fetch Backup API
+        const backupUrl = `https://movie-scraper-brown.vercel.app/api/stream?tmdbId=${id}&type=${type}${type === 'tv' ? `&season=${season}&episode=${episode}` : ''}`;
+        try {
+          const backupRes = await fetch(backupUrl);
+          const backupData = await backupRes.json();
+          if (backupData.success && backupData.streamUrl) {
+            allStreams.push({ name: "VidLink (Backup API)", url: backupData.streamUrl });
+            // Only use backup captions if primary failed
+            if (allCaptions.length === 0 && backupData.captions) {
+              allCaptions = backupData.captions;
+            }
+          }
+        } catch(err) {
+          console.error("Error fetching backup stream API:", err);
+        }
+
+        if (allStreams.length > 0) {
+            setAvailableStreams(allStreams);
             // Default to the first stream if adfreeServer index is out of bounds
-            const streamIndex = (adfreeServer < data.streams.length) ? adfreeServer : 0;
+            const streamIndex = (adfreeServer < allStreams.length) ? adfreeServer : 0;
             if (streamIndex !== adfreeServer) setAdfreeServer(streamIndex);
             
-            setNativeStreamUrl(data.streams[streamIndex].url);
-            setNativeCaptions(data.captions || []);
+            setNativeStreamUrl(allStreams[streamIndex].url);
+            setNativeCaptions(allCaptions);
         } else {
-            console.error("Local API returned no stream URL:", data);
+            console.error("No stream URLs returned from any API.");
             setAvailableStreams([]);
         }
       } catch(err) {
-         console.error("Error fetching stream:", err);
+         console.error("Unexpected error in fetchStream:", err);
       } finally {
          setStreamLoading(false);
       }
