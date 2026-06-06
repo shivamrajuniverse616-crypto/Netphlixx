@@ -1,20 +1,17 @@
 <div align="center">
 
+  <img src="public/presentation_ui.png" alt="Netphlixx UI Presentation" width="800"/>
+
   # 🎬 Netphlixx
-  
-  **A Highly Realistic, Modern Cinematic Streaming Platform Clone**
-  
-  [![Live Demo](https://img.shields.io/badge/Demo-Live_Now-success?style=for-the-badge&logo=netlify)](https://netphlixx.netlify.app/)
+
+  **A Highly Realistic, Premium Cinematic Streaming Platform Clone**
+
+  [![Live Demo (Main)](https://img.shields.io/badge/Main_Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://netphlixx.vercel.app/)
+  [![Live Demo (Backup)](https://img.shields.io/badge/Backup_Demo-Netlify-00C7B7?style=for-the-badge&logo=netlify)](https://netphlixx.netlify.app/)
   [![GitHub License](https://img.shields.io/github/license/shivamrajuniverse616-crypto/Netphlixx?style=for-the-badge)](https://github.com/shivamrajuniverse616-crypto/Netphlixx/blob/main/LICENSE)
   [![GitHub Stars](https://img.shields.io/github/stars/shivamrajuniverse616-crypto/Netphlixx?style=for-the-badge&color=yellow)](https://github.com/shivamrajuniverse616-crypto/Netphlixx/stargazers)
-  [![GitHub Forks](https://img.shields.io/github/forks/shivamrajuniverse616-crypto/Netphlixx?style=for-the-badge&color=orange)](https://github.com/shivamrajuniverse616-crypto/Netphlixx/network/members)
-  [![GitHub Issues](https://img.shields.io/github/issues/shivamrajuniverse616-crypto/Netphlixx?style=for-the-badge&color=red)](https://github.com/shivamrajuniverse616-crypto/Netphlixx/issues)
 
-  [About](#-about-netphlixx) • [Features](#-features) • [Tech Stack](#-tech-stack) • [Installation](#️-installation--setup) • [Contributing](#-contributing) • [License](#-license)
-
-  <br />
-
-  ![Presentation Showcase](public/presentation.png)
+  [About](#-about-netphlixx) • [Features](#-features) • [Tech Stack](#-tech-stack) • [Installation](#️-installation--setup) • [Contributing](#-contributing)
 
 </div>
 
@@ -22,7 +19,7 @@
 
 ## 📖 About Netphlixx
 
-**Netphlixx** is a meticulously crafted streaming platform clone designed to mirror the premium user experience of industry-leading video-on-demand services. Engineered with cutting-edge web technologies, it features fluid animations, a highly responsive dark mode aesthetic, and robust video playback functionality. 
+**Netphlixx** is a meticulously crafted streaming platform clone designed to mirror the premium user experience of industry-leading video-on-demand services. Engineered with cutting-edge web technologies, it features fluid animations, a highly responsive dark mode aesthetic, and robust media playback functionality. 
 
 Whether you are browsing movies, checking out TV shows, or diving into trailers, Netphlixx delivers an immersive, app-like experience straight in your browser.
 
@@ -31,16 +28,17 @@ Whether you are browsing movies, checking out TV shows, or diving into trailers,
 ## 🚀 Features
 
 ### 🎨 Modern & Premium UI/UX
-- **Cinematic Dark Theme:** A sleek, eye-catching interface with vibrant red accents and modern glassmorphism UI elements.
-- **Fully Responsive:** Pixel-perfect design optimized for mobile devices, tablets, and large desktop monitors.
+- **Cinematic Dark Theme:** A sleek, eye-catching interface with vibrant crimson accents and modern glassmorphism UI elements, inspired by industry leaders.
+- **Fully Responsive:** Pixel-perfect design optimized for mobile devices, tablets, and massive desktop monitors.
+- **Dynamic Theming:** Adapts color profiles instantly based on the content being viewed using `fast-average-color`, bringing the environment to life.
 
 ### ⚡ Fluid Animations & Interactions
-- **Framer Motion Integration:** High-performance layout animations and page transitions that give the application a smooth, native-like feel.
-- **Dynamic Theming:** Adapts color profiles instantly based on the content being viewed using `fast-average-color`.
+- **Framer Motion Integration:** High-performance layout animations, micro-interactions, and page transitions that give the application a smooth, native-like feel.
+- **Smart Search:** Instantly find what you are looking for with optimized filtering and debounced queries.
 
 ### 🎥 Advanced Media Playback
 - **Seamless Streaming:** Comprehensive adaptive video playback utilizing **HLS.js**, **React Player**, and **React YouTube**.
-- **Interactive UI:** Auto-playing hero banners, detailed movie information modals, and smooth horizontal content carousels.
+- **Interactive UI:** Auto-playing hero banners, detailed movie information modals, and buttery-smooth horizontal content carousels.
 
 ### 📱 Progressive Web App (PWA) Support
 - **Installable:** Save the app directly to your device home screen via `vite-plugin-pwa` for blazing-fast load times and offline caching capabilities.
@@ -50,28 +48,16 @@ Whether you are browsing movies, checking out TV shows, or diving into trailers,
 
 ## 💻 Tech Stack
 
-| Category | Technology |
-| :--- | :--- |
-| **Frontend Framework** | React 19, Vite 8 |
-| **Styling & UI** | Tailwind CSS 4, PostCSS |
-| **Animations** | Framer Motion |
-| **Routing** | React Router DOM v7 |
-| **Media Players** | HLS.js, React Player, React YouTube |
-| **Deployment** | Netlify |
+| Category | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend Framework** | React 19, Vite 8 | Ultra-fast rendering and build tooling. |
+| **Styling & UI** | Tailwind CSS 4, PostCSS | Utility-first CSS for rapid and beautiful UI. |
+| **Animations** | Framer Motion | Production-ready animation library. |
+| **Routing** | React Router DOM v7 | Dynamic client-side routing. |
+| **Media Players** | HLS.js, React Player, React YouTube | Robust multimedia playback engines. |
+| **Deployment** | Vercel (Main) & Netlify (Backup) | Edge-optimized global deployment. |
 
 ---
-
-
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=shivamrajuniverse616-crypto%2FNetphlixx&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=shivamrajuniverse616-crypto/Netphlixx&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=shivamrajuniverse616-crypto/Netphlixx&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=shivamrajuniverse616-crypto/Netphlixx&type=date&legend=top-left" />
- </picture>
-</a>
 
 ## 🛠️ Installation & Setup
 
