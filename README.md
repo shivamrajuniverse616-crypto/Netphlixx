@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="public/presentation_ui.png" alt="Netphlixx UI Presentation" width="800"/>
+  <img src="public/poster-final.jpg" alt="Netphlixx Promotional Poster" width="800"/>
 
   # 🎬 Netphlixx
 
