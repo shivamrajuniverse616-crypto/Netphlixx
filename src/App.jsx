@@ -2258,6 +2258,8 @@ function WatchPage() {
   const SERVERS = ['VidAPI', 'RGShows', 'SmashyStream', 'VidLink', 'VidSrcRU', 'VSrcSU', 'SuperEmbed', '2Embed'];
   const [server, setServer] = useLocalStorage('netphlix_server', SERVERS[0]);
   const [useAdfree, setUseAdfree] = useLocalStorage('netphlix_useAdfree', true);
+  const [adfreeServer, setAdfreeServer] = useLocalStorage('netphlix_adfreeServer', 0); // Stores the index of the selected stream
+  const [availableStreams, setAvailableStreams] = useState([]);
 
   const [watchHistory, setWatchHistory] = useLocalStorage('netphlix_watchHistory', []);
   
@@ -2278,15 +2280,23 @@ function WatchPage() {
     const fetchStream = async () => {
       try {
         setStreamLoading(true);
-        // Ensure you push your backend updates to GitHub so this Vercel API has the captions fix!
-        const res = await fetch(`https://movie-scraper-brown.vercel.app/api/stream?tmdbId=${id}&type=${type}${type === 'tv' ? `&season=${season}&episode=${episode}` : ''}`);
+        const url = `https://movie-scraper-gilt.vercel.app/api?tmdb=${id}${type === 'tv' ? `&s=${season}&e=${episode}` : ''}`;
+        
+        const res = await fetch(url);
         const data = await res.json();
-         if (data.streamUrl) {
-            setNativeStreamUrl(data.streamUrl);
+        
+        if (data.success && data.streams && data.streams.length > 0) {
+            setAvailableStreams(data.streams);
+            // Default to the first stream if adfreeServer index is out of bounds
+            const streamIndex = (adfreeServer < data.streams.length) ? adfreeServer : 0;
+            if (streamIndex !== adfreeServer) setAdfreeServer(streamIndex);
+            
+            setNativeStreamUrl(data.streams[streamIndex].url);
             setNativeCaptions(data.captions || []);
-         } else {
+        } else {
             console.error("Local API returned no stream URL:", data);
-         }
+            setAvailableStreams([]);
+        }
       } catch(err) {
          console.error("Error fetching stream:", err);
       } finally {
@@ -2298,6 +2308,13 @@ function WatchPage() {
        fetchStream();
     }
   }, [type, id, season, episode, useAdfree]);
+
+  // Handle stream source switching instantly
+  useEffect(() => {
+      if (availableStreams.length > 0 && adfreeServer < availableStreams.length) {
+          setNativeStreamUrl(availableStreams[adfreeServer].url);
+      }
+  }, [adfreeServer, availableStreams]);
 
   // Fetch Details & Save to watch history
   useEffect(() => {
@@ -2522,6 +2539,23 @@ function WatchPage() {
                 <Star className={`w-4 h-4 ${useAdfree ? 'fill-white' : ''}`} />
                 <span>{useAdfree ? 'Adfree ON' : 'Adfree Player'}</span>
               </button>
+
+              {useAdfree && availableStreams.length > 0 && (
+                <div className="flex items-center bg-[#1a1a1a] px-3 py-2 md:py-2.5 rounded-lg border border-gray-700 hover:border-gray-500 transition shadow-lg w-full md:w-auto">
+                  <span className="text-[var(--accent-color)] text-xs font-semibold mr-2 hidden sm:block">SOURCE:</span>
+                  <select 
+                    value={adfreeServer} 
+                    onChange={(e) => setAdfreeServer(parseInt(e.target.value))}
+                    className="bg-transparent text-white font-bold outline-none text-sm cursor-pointer w-full"
+                  >
+                    {availableStreams.map((stream, idx) => (
+                        <option key={idx} value={idx} className="bg-gray-900 text-white">
+                            {stream.name}
+                        </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {!useAdfree && (
                 <div className="flex items-center bg-[#1a1a1a] px-3 py-2 md:py-2.5 rounded-lg border border-gray-700 hover:border-gray-500 transition shadow-lg w-full md:w-auto">
