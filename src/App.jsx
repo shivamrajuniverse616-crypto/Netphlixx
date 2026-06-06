@@ -2443,7 +2443,7 @@ function WatchPage() {
         case 'VidLink': return `https://vidlink.pro/tv/${id}/${season}/${episode}`;
         case 'RGShows': return `https://rgshows.me/player/tv/api1/index.html?id=${id}&s=${season}&e=${episode}`;
         case 'SmashyStream': return `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${season}&ep=${episode}`;
-        case 'VidSrcRU': return `https://vidsrcme.ru/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
+        case 'VidSrcRU': return `https://vidsrc.ru/tv/${id}/${season}/${episode}`;
         case 'VSrcSU': return `https://vsrc.su/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
         case 'SuperEmbed': return `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`;
         case '2Embed': return `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}`;
@@ -2455,7 +2455,7 @@ function WatchPage() {
         case 'VidLink': return `https://vidlink.pro/movie/${id}`;
         case 'RGShows': return `https://rgshows.me/player/movies/api1/index.html?id=${id}`;
         case 'SmashyStream': return `https://embed.smashystream.com/playere.php?tmdb=${id}`;
-        case 'VidSrcRU': return `https://vidsrcme.ru/embed/movie?tmdb=${id}`;
+        case 'VidSrcRU': return `https://vidsrc.ru/movie/${id}`;
         case 'VSrcSU': return `https://vsrc.su/embed/movie?tmdb=${id}`;
         case 'SuperEmbed': return `https://multiembed.mov/?video_id=${id}&tmdb=1`;
         case '2Embed': return `https://www.2embed.cc/embed/${id}`;
