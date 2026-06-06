@@ -2250,7 +2250,6 @@ function WatchPage() {
   const { type, id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  
   const queryParams = new URLSearchParams(location.search);
   const season = queryParams.get('s') || 1;
   const episode = queryParams.get('e') || 1;
@@ -2258,63 +2257,16 @@ function WatchPage() {
   const SERVERS = ['VidAPI', 'RGShows', 'SmashyStream', 'VidLink', 'VidSrcRU', 'VSrcSU', 'SuperEmbed', '2Embed'];
   const [server, setServer] = useLocalStorage('netphlix_server', SERVERS[0]);
   const [useAdfree, setUseAdfree] = useLocalStorage('netphlix_useAdfree', true);
-  const [adfreeServer, setAdfreeServer] = useLocalStorage('netphlix_adfreeServer', 0); // Stores the index of the selected stream
-  const [availableStreams, setAvailableStreams] = useState([]);
-
   const [watchHistory, setWatchHistory] = useLocalStorage('netphlix_watchHistory', []);
   
   const [details, setDetails] = useState(null);
   const [episodesList, setEpisodesList] = useState([]);
   const [activeTab, setActiveTab] = useState('');
   const [showEpisodes, setShowEpisodes] = useState(false);
-  const [nativeStreamUrl, setNativeStreamUrl] = useState(null);
-  const [nativeCaptions, setNativeCaptions] = useState([]);
-  const [streamLoading, setStreamLoading] = useState(true);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id, season, episode]);
-
-  // Fetch Stream from Backend
-  useEffect(() => {
-    const fetchStream = async () => {
-      try {
-        setStreamLoading(true);
-        const url = `https://movie-scraper-gilt.vercel.app/api?tmdb=${id}${type === 'tv' ? `&s=${season}&e=${episode}` : ''}`;
-        
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        if (data.success && data.streams && data.streams.length > 0) {
-            setAvailableStreams(data.streams);
-            // Default to the first stream if adfreeServer index is out of bounds
-            const streamIndex = (adfreeServer < data.streams.length) ? adfreeServer : 0;
-            if (streamIndex !== adfreeServer) setAdfreeServer(streamIndex);
-            
-            setNativeStreamUrl(data.streams[streamIndex].url);
-            setNativeCaptions(data.captions || []);
-        } else {
-            console.error("Local API returned no stream URL:", data);
-            setAvailableStreams([]);
-        }
-      } catch(err) {
-         console.error("Error fetching stream:", err);
-      } finally {
-         setStreamLoading(false);
-      }
-    };
-    
-    if (useAdfree) {
-       fetchStream();
-    }
-  }, [type, id, season, episode, useAdfree]);
-
-  // Handle stream source switching instantly
-  useEffect(() => {
-      if (availableStreams.length > 0 && adfreeServer < availableStreams.length) {
-          setNativeStreamUrl(availableStreams[adfreeServer].url);
-      }
-  }, [adfreeServer, availableStreams]);
 
   // Fetch Details & Save to watch history
   useEffect(() => {
@@ -2458,35 +2410,16 @@ function WatchPage() {
         <div className="max-w-[1800px] mx-auto relative group">
           <div id="video-player-container" className="relative w-full aspect-video bg-black md:rounded-xl overflow-hidden md:shadow-[0_0_60px_rgba(0,0,0,0.8)] md:border border-gray-800 transition-all duration-500">
           
-            {useAdfree && streamLoading ? (
-               <div className="w-full h-full flex flex-col items-center justify-center bg-[#0a0a0a]">
-                  <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[var(--accent-color)] shadow-[0_0_20px_rgba(229,9,20,0.5)]"></div>
-                  <p className="mt-4 text-gray-400 font-bold tracking-widest uppercase text-sm animate-pulse">Loading Stream...</p>
-               </div>
-            ) : useAdfree && nativeStreamUrl ? (
-               <CustomPlayer 
-                  url={nativeStreamUrl} 
-                  title={`${details?.title || details?.name || 'Video'} ${type === 'tv' ? `(S${season} E${episode})` : ''}`}
-                  onBack={() => navigate(-1)}
-                  externalCaptions={nativeCaptions}
-                  onProgress={(progress) => {
-                     setWatchHistory(prev => prev.map(m => m.id === parseInt(id) ? { ...m, progress } : m));
-                  }}
-               />
-            ) : useAdfree ? (
-               <div className="w-full h-full flex flex-col items-center justify-center bg-[#0a0a0a]">
-                  <p className="text-gray-400 font-medium">Stream not available right now. Try switching servers.</p>
-               </div>
-            ) : (
-              <iframe
-                key={`${server}-${season}-${episode}`}
-                src={getIframeSrc()}
-                className="w-full h-full border-none"
-                frameBorder="0"
-                allowFullScreen
-                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-              ></iframe>
-            )}
+            <iframe
+              key={`${server}-${season}-${episode}-${useAdfree}`}
+              src={getIframeSrc()}
+              className="w-full h-full border-none"
+              frameBorder="0"
+              allowFullScreen
+              sandbox={useAdfree 
+                ? "allow-scripts allow-same-origin allow-forms allow-presentation" 
+                : "allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-top-navigation allow-top-navigation-by-user-activation"}
+            ></iframe>
           </div>
         </div>
       </div>
@@ -2535,42 +2468,24 @@ function WatchPage() {
                   ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]' 
                   : 'bg-black/70 border-gray-600 text-gray-300 hover:text-white hover:border-gray-400'
                 }`}
+                title="Toggles popup blocking for the embedded player"
               >
                 <Star className={`w-4 h-4 ${useAdfree ? 'fill-white' : ''}`} />
-                <span>{useAdfree ? 'Adfree ON' : 'Adfree Player'}</span>
+                <span>{useAdfree ? 'Adfree ON' : 'Adfree OFF'}</span>
               </button>
 
-              {useAdfree && availableStreams.length > 0 && (
-                <div className="flex items-center bg-[#1a1a1a] px-3 py-2 md:py-2.5 rounded-lg border border-gray-700 hover:border-gray-500 transition shadow-lg w-full md:w-auto">
-                  <span className="text-[var(--accent-color)] text-xs font-semibold mr-2 hidden sm:block">SOURCE:</span>
-                  <select 
-                    value={adfreeServer} 
-                    onChange={(e) => setAdfreeServer(parseInt(e.target.value))}
-                    className="bg-transparent text-white font-bold outline-none text-sm cursor-pointer w-full"
-                  >
-                    {availableStreams.map((stream, idx) => (
-                        <option key={idx} value={idx} className="bg-gray-900 text-white">
-                            {stream.name}
-                        </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {!useAdfree && (
-                <div className="flex items-center bg-[#1a1a1a] px-3 py-2 md:py-2.5 rounded-lg border border-gray-700 hover:border-gray-500 transition shadow-lg w-full md:w-auto">
-                  <span className="text-gray-400 text-xs font-semibold mr-2 hidden sm:block">SERVER:</span>
-                  <select 
-                    value={server} 
-                    onChange={(e) => setServer(e.target.value)}
-                    className="bg-transparent text-white font-bold outline-none text-sm cursor-pointer w-full"
-                  >
-                    {SERVERS.map(s => (
-                      <option key={s} value={s} className="bg-gray-900 text-white">{s}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div className="flex items-center bg-[#1a1a1a] px-3 py-2 md:py-2.5 rounded-lg border border-gray-700 hover:border-gray-500 transition shadow-lg w-full md:w-auto">
+                <span className="text-gray-400 text-xs font-semibold mr-2 hidden sm:block">SERVER:</span>
+                <select 
+                  value={server} 
+                  onChange={(e) => setServer(e.target.value)}
+                  className="bg-transparent text-white font-bold outline-none text-sm cursor-pointer w-full"
+                >
+                  {SERVERS.map(s => (
+                    <option key={s} value={s} className="bg-gray-900 text-white">{s}</option>
+                  ))}
+                </select>
+              </div>
             </div>
          </div>
       </div>
