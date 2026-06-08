@@ -1295,6 +1295,7 @@ function TitlePage() {
   const [episodes, setEpisodes] = useState([]);
   const [bgColor, setBgColor] = useState('rgba(20,20,20,1)');
   const [selectedPerson, setSelectedPerson] = useState(null);
+  const [collectionMovies, setCollectionMovies] = useState([]);
   
   const [myList, setMyList] = useLocalStorage('netphlix_myList', []);
   const [likedMovies, setLikedMovies] = useLocalStorage('netphlix_liked', []);
@@ -1325,7 +1326,10 @@ function TitlePage() {
   useEffect(() => {
     window.scrollTo(0, 0);
     async function fetchDetails() {
-      const url = `${BASE_URL}/${type}/${id}?api_key=${API_KEY}&append_to_response=credits,videos,images,reviews`;
+      const appendStr = type === 'movie' 
+        ? 'credits,videos,images,reviews,keywords,release_dates,watch/providers' 
+        : 'credits,videos,images,reviews,keywords,content_ratings,watch/providers';
+      const url = `${BASE_URL}/${type}/${id}?api_key=${API_KEY}&append_to_response=${appendStr}`;
       const res = await fetch(url).then(r => r.json());
       setDetails(res);
       
@@ -1335,6 +1339,16 @@ function TitlePage() {
 
       if (type === 'tv') {
         fetchSeasonEpisodes(1);
+      }
+
+      if (res.belongs_to_collection) {
+        try {
+          const colUrl = `${BASE_URL}/collection/${res.belongs_to_collection.id}?api_key=${API_KEY}`;
+          const colRes = await fetch(colUrl).then(r => r.json());
+          if (colRes.parts) {
+            setCollectionMovies(colRes.parts.sort((a, b) => new Date(a.release_date || '2099-01-01') - new Date(b.release_date || '2099-01-01')));
+          }
+        } catch(e) {}
       }
 
       // Color extraction
@@ -1414,6 +1428,42 @@ function TitlePage() {
   const formattedDate = releaseDate ? new Date(releaseDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown Date';
   const logo = details.images?.logos?.find(l => l.iso_639_1 === 'en')?.file_path || details.images?.logos?.[0]?.file_path;
 
+  const KNOWN_AWARD_WINNERS = [
+    872585, // Oppenheimer
+    496243, // Parasite
+    545609, // Everything Everywhere All at Once
+    155,    // The Dark Knight
+    13,     // Forrest Gump
+    122,    // The Lord of the Rings: The Return of the King
+    680,    // Pulp Fiction
+    278,    // The Shawshank Redemption
+    238,    // The Godfather
+    424,    // Schindler's List
+    157336, // Interstellar (VFX)
+    118340, // Guardians of the Galaxy (Nominated/VFX)
+    603,    // The Matrix
+    70160,  // The Hunger Games (not Oscar but huge awards)
+  ];
+  const kwds = details.keywords?.results || details.keywords?.keywords || [];
+  const hasAwardKeyword = kwds.some(k => k.name.toLowerCase().includes('oscar') || k.name.toLowerCase().includes('emmy') || k.name.toLowerCase().includes('award'));
+  const isAwardWinner = hasAwardKeyword || KNOWN_AWARD_WINNERS.includes(parseInt(id));
+
+  let ageRating = null;
+  if (type === 'movie' && details.release_dates) {
+     const usRelease = details.release_dates.results?.find(r => r.iso_3166_1 === 'US');
+     if (usRelease && usRelease.release_dates.length > 0) {
+        ageRating = usRelease.release_dates[0].certification;
+     }
+  } else if (type === 'tv' && details.content_ratings) {
+     const usRating = details.content_ratings.results?.find(r => r.iso_3166_1 === 'US');
+     if (usRating) {
+        ageRating = usRating.rating;
+     }
+  }
+
+  const usProviders = details['watch/providers']?.results?.US;
+  const watchProviders = usProviders?.flatrate || usProviders?.rent || usProviders?.buy || [];
+
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.98, y: 15 }}
@@ -1462,6 +1512,13 @@ function TitlePage() {
           <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
             {/* Center Column: Details */}
             <div className="flex-1 flex flex-col justify-start">
+          {isAwardWinner && (
+             <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600/20 to-yellow-400/10 border border-yellow-500/30 text-yellow-500 px-4 py-1.5 rounded-full w-max mb-4 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                <Star className="w-4 h-4 fill-yellow-500" />
+                <span className="text-xs font-bold uppercase tracking-widest">Award Winner</span>
+             </div>
+          )}
+
           {logo ? (
             <img src={`${IMAGE_BASE_URL_W500}${logo}`} alt={details.title || details.name} className="w-full max-w-[400px] object-contain mb-6 drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] filter contrast-125" />
           ) : (
@@ -1479,6 +1536,7 @@ function TitlePage() {
                   whileHover={{ scale: 1.05 }}
                   transition={{ duration: 0.3 }}
                   className="relative group/logo cursor-pointer flex items-center justify-center"
+                  onClick={() => navigate(`/company/${c.id}`)}
                 >
                   <img src={`${IMAGE_BASE_URL_W500}${c.logo_path}`} className="h-6 md:h-8 object-contain filter brightness-0 invert opacity-90 group-hover/logo:brightness-100 group-hover/logo:invert-0 group-hover/logo:opacity-100 transition-all duration-300 drop-shadow-md" alt={c.name} />
                   <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/90 border border-white/10 text-white text-xs font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover/logo:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl z-50 backdrop-blur-sm">
@@ -1491,7 +1549,12 @@ function TitlePage() {
 
           <div className="flex flex-col space-y-2 text-gray-300 font-medium mb-6">
             <div className="flex items-center text-[13px]"><Calendar className="w-4 h-4 mr-2 text-gray-400"/> {formattedDate} (United States)</div>
-            <div className="flex items-center text-[13px]"><Clock className="w-4 h-4 mr-2 text-gray-400"/> {runtime}</div>
+            <div className="flex items-center text-[13px]">
+               <Clock className="w-4 h-4 mr-2 text-gray-400"/> {runtime}
+               {ageRating && (
+                 <span className="ml-3 border border-white/40 text-gray-300 px-1.5 py-0.5 text-[11px] rounded font-bold tracking-wider">{ageRating}</span>
+               )}
+            </div>
           </div>
 
           {details.genres && (
@@ -1505,14 +1568,16 @@ function TitlePage() {
           )}
 
           {director && (
-            <div className="flex items-center mb-12">
-              {director.profile_path ? (
-                <img src={`${IMAGE_BASE_URL_W500}${director.profile_path}`} className="w-12 h-12 rounded-full mr-4 object-cover" alt={director.name} />
-              ) : (
-                <div className="w-12 h-12 rounded-full mr-4 bg-white/10 flex items-center justify-center"><User className="w-5 h-5 text-gray-400"/></div>
-              )}
+            <div className="flex items-center mb-12 cursor-pointer group w-max" onClick={() => navigate(`/person/${director.id}`)}>
+              <div className="w-12 h-12 rounded-full mr-4 overflow-hidden flex-none">
+                {director.profile_path ? (
+                  <img src={`${IMAGE_BASE_URL_W500}${director.profile_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={director.name} />
+                ) : (
+                  <div className="w-full h-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><User className="w-5 h-5 text-gray-400"/></div>
+                )}
+              </div>
               <div className="flex flex-col justify-center">
-                <p className="font-bold text-white text-base leading-none">{director.name}</p>
+                <p className="font-bold text-white text-base leading-none group-hover:text-netflix-red transition-colors">{director.name}</p>
                 <p className="text-gray-400 text-xs mt-1 leading-none">Director</p>
               </div>
             </div>
@@ -1555,7 +1620,7 @@ function TitlePage() {
               <h3 className="text-lg font-bold mb-6 text-white font-display tracking-tight">Casts & Credits</h3>
               <div className="flex flex-col space-y-4">
                 {castList.map(person => (
-                  <div key={person.id} className="flex items-center space-x-4 cursor-pointer group" onClick={() => setSelectedPerson(person.id)}>
+                  <div key={person.id} className="flex items-center space-x-4 cursor-pointer group" onClick={() => navigate(`/person/${person.id}`)}>
                     <div className="w-10 h-10 rounded-full overflow-hidden flex-none bg-white/5">
                       {person.profile_path ? (
                         <img src={`${IMAGE_BASE_URL_W500}${person.profile_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-300" alt={person.name} />
@@ -1580,7 +1645,20 @@ function TitlePage() {
           <div className="mt-8 w-full max-w-4xl pb-20">
             <div className="mb-12 pr-4 md:pr-12">
               <h3 className="text-lg font-bold mb-4 font-display">Overview</h3>
-              <p className="text-gray-300 text-[13px] leading-relaxed">{details.overview}</p>
+              <p className="text-gray-300 text-[13px] leading-relaxed mb-6">{details.overview}</p>
+              
+              {watchProviders.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-xs font-bold text-gray-400 mb-3">Available to Watch On</p>
+                  <div className="flex flex-wrap gap-3">
+                    {watchProviders.map(provider => (
+                       <div key={provider.provider_id} className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 shadow-lg" title={provider.provider_name}>
+                          <img src={`${IMAGE_BASE_URL_W500}${provider.logo_path}`} alt={provider.provider_name} className="w-full h-full object-cover" />
+                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {trailer && (
@@ -1594,6 +1672,29 @@ function TitlePage() {
                 <div className="absolute bottom-6 left-0 right-0 text-center pointer-events-none">
                    <h2 className="text-xl md:text-2xl font-black text-white font-display drop-shadow-lg tracking-tight">{details.title || details.name}</h2>
                    <p className="text-gray-300 font-medium tracking-widest text-[10px] uppercase mt-1">Official Trailer</p>
+                </div>
+              </div>
+            )}
+
+            {details.belongs_to_collection && collectionMovies.length > 0 && (
+              <div className="mb-12">
+                <h3 className="text-lg font-bold mb-6 text-white font-display">The {details.belongs_to_collection.name} - Watch in Order</h3>
+                <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
+                  {collectionMovies.map(movie => (
+                    <div 
+                      key={movie.id} 
+                      className={`flex-none w-32 md:w-40 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer relative group border-2 ${movie.id === parseInt(id) ? 'border-netflix-red shadow-[0_0_15px_rgba(229,9,20,0.5)] scale-105 z-10' : 'border-transparent hover:border-white/30'}`}
+                      onClick={() => navigate(`/title/movie/${movie.id}`)}
+                    >
+                      <img src={`${IMAGE_BASE_URL_W500}${movie.poster_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={movie.title} />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="w-8 h-8 text-white fill-current shadow-lg" />
+                      </div>
+                      {movie.id === parseInt(id) && (
+                        <div className="absolute top-2 left-2 bg-netflix-red text-[10px] font-bold px-2 py-0.5 rounded shadow-md">YOU ARE HERE</div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -2877,6 +2978,179 @@ function CategoryPage() {
   );
 }
 
+function PersonPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [person, setPerson] = useState(null);
+  
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    async function fetchPerson() {
+      const url = `${BASE_URL}/person/${id}?api_key=${API_KEY}&append_to_response=movie_credits,tv_credits`;
+      try {
+        const res = await fetch(url).then(r => r.json());
+        setPerson(res);
+      } catch(e) {
+        console.error("Failed to fetch person", e);
+      }
+    }
+    fetchPerson();
+  }, [id]);
+
+  if (!person) return (
+    <div className="min-h-screen bg-shows-dark text-white pt-32 px-4 md:px-12 flex items-center justify-center">
+       <div className="w-12 h-12 border-4 border-netflix-red border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+
+  const knownFor = [...(person.movie_credits?.cast || []), ...(person.tv_credits?.cast || [])]
+    .filter(m => m.poster_path)
+    .sort((a, b) => b.popularity - a.popularity)
+    .reduce((acc, current) => {
+      const x = acc.find(item => item.id === current.id);
+      if (!x) return acc.concat([current]);
+      return acc;
+    }, [])
+    .slice(0, 20);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="min-h-screen bg-shows-dark text-white font-sans relative"
+    >
+      <Navbar activeTab="" setActiveTab={() => navigate('/')} />
+      
+      <div className="container mx-auto px-4 md:px-12 pt-32 pb-20">
+        <div className="flex flex-col md:flex-row gap-12">
+          <div className="w-full md:w-[300px] flex-none">
+             <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-2xl mb-6 bg-white/5">
+                {person.profile_path ? (
+                  <img src={`${IMAGE_BASE_URL_W500}${person.profile_path}`} className="w-full h-full object-cover" alt={person.name} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"><User className="w-20 h-20 text-gray-500" /></div>
+                )}
+             </div>
+             <h2 className="text-xl font-bold mb-4 font-display">Personal Info</h2>
+             <div className="space-y-4 text-sm">
+                <div><strong className="block text-gray-400">Known For</strong><br/>{person.known_for_department}</div>
+                <div><strong className="block text-gray-400">Gender</strong><br/>{person.gender === 1 ? 'Female' : person.gender === 2 ? 'Male' : 'Other'}</div>
+                {person.birthday && <div><strong className="block text-gray-400">Birthday</strong><br/>{person.birthday}</div>}
+                {person.place_of_birth && <div><strong className="block text-gray-400">Place of Birth</strong><br/>{person.place_of_birth}</div>}
+             </div>
+          </div>
+          
+          <div className="flex-1">
+             <h1 className="text-4xl md:text-6xl font-black font-display mb-6">{person.name}</h1>
+             
+             {person.biography && (
+               <div className="mb-12">
+                 <h3 className="text-xl font-bold mb-4 font-display">Biography</h3>
+                 <p className="text-gray-300 leading-relaxed whitespace-pre-line text-sm md:text-base">{person.biography}</p>
+               </div>
+             )}
+
+             {knownFor.length > 0 && (
+               <div>
+                 <h3 className="text-xl font-bold mb-6 font-display">Known For</h3>
+                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                   {knownFor.map(movie => (
+                     <div key={movie.id} className="cursor-pointer group" onClick={() => navigate(`/title/${movie.media_type || 'movie'}/${movie.id}`)}>
+                        <div className="aspect-[2/3] rounded-lg overflow-hidden border border-white/10 mb-2 shadow-lg">
+                           <img src={`${IMAGE_BASE_URL_W500}${movie.poster_path}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt={movie.title || movie.name} />
+                        </div>
+                        <h4 className="text-sm font-bold truncate group-hover:text-netflix-red transition-colors">{movie.title || movie.name}</h4>
+                        <p className="text-xs text-gray-500 truncate">{movie.character}</p>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             )}
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </motion.div>
+  );
+}
+
+function CompanyPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [company, setCompany] = useState(null);
+  const [movies, setMovies] = useState([]);
+  
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    async function fetchData() {
+      try {
+        const compRes = await fetch(`${BASE_URL}/company/${id}?api_key=${API_KEY}`).then(r => r.json());
+        setCompany(compRes);
+        
+        const movRes = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&with_companies=${id}&sort_by=popularity.desc`).then(r => r.json());
+        setMovies(movRes.results || []);
+      } catch(e) {
+        console.error("Failed to fetch company", e);
+      }
+    }
+    fetchData();
+  }, [id]);
+
+  if (!company) return (
+    <div className="min-h-screen bg-shows-dark text-white pt-32 px-4 flex items-center justify-center">
+       <div className="w-12 h-12 border-4 border-netflix-red border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="min-h-screen bg-shows-dark text-white font-sans relative pb-20"
+    >
+      <Navbar activeTab="" setActiveTab={() => navigate('/')} />
+      
+      <div className="container mx-auto px-4 md:px-12 pt-32">
+         <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8 mb-12 border-b border-white/10 pb-12">
+            {company.logo_path ? (
+               <div className="bg-white p-6 rounded-2xl shadow-xl w-48 md:w-64 h-48 md:h-64 flex items-center justify-center flex-none">
+                 <img src={`${IMAGE_BASE_URL_W500}${company.logo_path}`} className="max-w-[80%] max-h-[80%] object-contain" alt={company.name} />
+               </div>
+            ) : (
+               <div className="w-48 md:w-64 h-48 md:h-64 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shadow-xl flex-none">
+                  <span className="text-gray-500 font-bold text-xl">{company.name}</span>
+               </div>
+            )}
+            <div className="flex-1 text-center md:text-left mt-4 md:mt-0">
+               <h1 className="text-4xl md:text-6xl font-black font-display mb-4 tracking-tight">{company.name}</h1>
+               <p className="text-gray-400 font-bold tracking-widest text-sm uppercase bg-white/10 px-4 py-1.5 rounded-full w-max mx-auto md:mx-0">Production Studio</p>
+               {company.headquarters && <p className="text-gray-300 text-base mt-6 flex items-center justify-center md:justify-start"><span className="text-gray-500 mr-2">📍</span> {company.headquarters}</p>}
+               {company.homepage && <a href={company.homepage} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-400 font-medium mt-3 inline-block">Visit Official Website ↗</a>}
+            </div>
+         </div>
+         
+         <h2 className="text-2xl md:text-3xl font-bold font-display mb-8">Produced by {company.name}</h2>
+         {movies.length > 0 ? (
+           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+             {movies.map(movie => (
+               <div key={movie.id} className="cursor-pointer group relative rounded-xl overflow-hidden aspect-[2/3] border border-white/10 shadow-lg hover:shadow-2xl transition-all hover:scale-105" onClick={() => navigate(`/title/movie/${movie.id}`)}>
+                  <img src={`${IMAGE_BASE_URL_W500}${movie.poster_path}`} className="w-full h-full object-cover group-hover:brightness-110 transition-all duration-500" alt={movie.title} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                     <p className="text-white font-bold text-sm line-clamp-2">{movie.title}</p>
+                     {movie.release_date && <p className="text-gray-400 text-[10px] mt-1 font-medium">{movie.release_date.substring(0,4)}</p>}
+                  </div>
+               </div>
+             ))}
+           </div>
+         ) : (
+           <p className="text-gray-500 text-lg">No movies found for this studio.</p>
+         )}
+      </div>
+      <Footer />
+    </motion.div>
+  );
+}
+
 export default function App() {
   const [showLoader, setShowLoader] = useState(true);
   const [fadeLoader, setFadeLoader] = useState(false);
@@ -2905,6 +3179,8 @@ export default function App() {
           <Route path="/watch/:type/:id" element={<WatchPage />} />
           <Route path="/category/:title" element={<CategoryPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/person/:id" element={<PersonPage />} />
+          <Route path="/company/:id" element={<CompanyPage />} />
         </Routes>
       </AnimatePresence>
     </>
