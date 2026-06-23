@@ -207,12 +207,17 @@ function Navbar({ onSearch, activeTab, setActiveTab, toggleMobileSearch, mobileS
     setSearchQuery('');
     if (onSearch) onSearch('');
     if (mobileSearchOpen) toggleMobileSearch();
-    navigate('/');
+    if (item === 'Live TV') {
+      navigate('/live');
+    } else {
+      navigate('/', { state: { activeTab: item } });
+    }
   };
 
   const navItems = [
     { name: 'Movies', icon: Film },
-    { name: 'TV', icon: Tv }
+    { name: 'TV', icon: Tv },
+    { name: 'Live TV', icon: Radio }
   ];
 
   return (
@@ -367,6 +372,10 @@ function Navbar({ onSearch, activeTab, setActiveTab, toggleMobileSearch, mobileS
          <div className="flex flex-col items-center cursor-pointer text-gray-400 hover:text-white transition" onClick={toggleMobileSearch}>
             <Search className={`w-6 h-6 ${mobileSearchOpen ? 'text-white' : ''}`} />
             <span className="text-[10px] mt-1">Search</span>
+         </div>
+         <div className="flex flex-col items-center cursor-pointer text-gray-400 hover:text-white transition" onClick={() => navigate('/live')}>
+            <Radio className={`w-6 h-6 ${location.pathname === '/live' ? 'text-white' : ''}`} />
+            <span className="text-[10px] mt-1">Live TV</span>
          </div>
          <div className="flex flex-col items-center cursor-pointer text-gray-400 hover:text-white transition" onClick={() => navigate('/profile')}>
             <Plus className="w-6 h-6" />
@@ -1025,7 +1034,8 @@ function InlineBanner({ movie }) {
 }
 
 function Dashboard() {
-  const [activeTab, setActiveTab] = useState('Home');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'Home');
   const [featured, setFeatured] = useState(null);
   const [trending, setTrending] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1741,7 +1751,7 @@ function TitlePage() {
 
 import Hls from 'hls.js';
 
-const CustomPlayer = ({ url, title, onBack, externalCaptions = [], hasNextEpisode, onNextEpisode, onProgress }) => {
+const CustomPlayer = ({ url, type = 'm3u8', title, onBack, externalCaptions = [], hasNextEpisode, onNextEpisode, onProgress }) => {
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [played, setPlayed] = useState(0);
@@ -1862,7 +1872,7 @@ const CustomPlayer = ({ url, title, onBack, externalCaptions = [], hasNextEpisod
     const video = playerRef.current;
     if (!video) return;
 
-    if (Hls.isSupported()) {
+    if (Hls.isSupported() && type !== 'mp4' && !url.includes('.mp4')) {
       const hls = new Hls({
         maxBufferLength: 30,
         enableWorker: true,
@@ -1894,10 +1904,12 @@ const CustomPlayer = ({ url, title, onBack, externalCaptions = [], hasNextEpisod
       return () => {
         hls.destroy();
       };
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    } else {
+      // Fallback to native video src for MP4 or native HLS (Safari)
       video.src = url;
+      setIsBuffering(false); // Can't precisely know manifest parse, assume ready
     }
-  }, [url]);
+  }, [url, type]);
 
   useEffect(() => {
     if (playerRef.current) {
@@ -2355,7 +2367,7 @@ function WatchPage() {
   const queryParams = new URLSearchParams(location.search);
   const season = queryParams.get('s') || 1;
   const episode = queryParams.get('e') || 1;
-  const SERVERS = ['VidAPI', 'RGShows', 'SmashyStream', 'VidLink', 'VidSrcRU', 'VSrcSU', 'SuperEmbed', '2Embed'];
+  const SERVERS = ['VidAPI', 'RGShows', 'SmashyStream', 'VidLink', 'VidSrcRU', 'VSrcSU', 'SuperEmbed', '2Embed', 'Peachify'];
   const [server, setServer] = useLocalStorage('netphlix_server', SERVERS[0]);
   const [useAdfree, setUseAdfree] = useLocalStorage('netphlix_useAdfree', true);
   const [useSandbox, setUseSandbox] = useLocalStorage('netphlix_useSandbox', true);
@@ -2369,6 +2381,7 @@ function WatchPage() {
   const [activeTab, setActiveTab] = useState('');
   const [showEpisodes, setShowEpisodes] = useState(false);
   const [nativeStreamUrl, setNativeStreamUrl] = useState(null);
+  const [nativeStreamType, setNativeStreamType] = useState('m3u8');
   const [nativeCaptions, setNativeCaptions] = useState([]);
   const [streamLoading, setStreamLoading] = useState(true);
 
@@ -2413,6 +2426,29 @@ function WatchPage() {
           console.error("Error fetching backup stream API:", err);
         }
 
+        // Fetch CinePro API (Render deployment)
+        const cineproUrl = type === 'tv' 
+          ? `https://core-4z5l.onrender.com/v1/tv/${id}/seasons/${season}/episodes/${episode}`
+          : `https://core-4z5l.onrender.com/v1/movies/${id}`;
+        try {
+          const cineproRes = await fetch(cineproUrl);
+          const cineproData = await cineproRes.json();
+          if (cineproData && cineproData.sources && cineproData.sources.length > 0) {
+            cineproData.sources.forEach(source => {
+              if (source.url) {
+                 const providerName = source.provider?.name || source.name || 'Stream';
+                 allStreams.push({ 
+                    name: `CinePro - ${providerName} (${source.quality || 'Auto'})`, 
+                    url: source.url,
+                    type: source.type || 'mp4' 
+                 });
+              }
+            });
+          }
+        } catch(err) {
+          console.error("Error fetching CinePro API:", err);
+        }
+
         if (allStreams.length > 0) {
             setAvailableStreams(allStreams);
             // Default to the first stream if adfreeServer index is out of bounds
@@ -2420,6 +2456,7 @@ function WatchPage() {
             if (streamIndex !== adfreeServer) setAdfreeServer(streamIndex);
             
             setNativeStreamUrl(allStreams[streamIndex].url);
+            setNativeStreamType(allStreams[streamIndex].type || 'm3u8');
             setNativeCaptions(allCaptions);
         } else {
             console.error("No stream URLs returned from any API.");
@@ -2441,6 +2478,7 @@ function WatchPage() {
   useEffect(() => {
       if (availableStreams.length > 0 && adfreeServer < availableStreams.length) {
           setNativeStreamUrl(availableStreams[adfreeServer].url);
+          setNativeStreamType(availableStreams[adfreeServer].type || 'm3u8');
       }
   }, [adfreeServer, availableStreams]);
 
@@ -2548,6 +2586,7 @@ function WatchPage() {
         case 'VSrcSU': return `https://vsrc.su/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
         case 'SuperEmbed': return `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`;
         case '2Embed': return `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}`;
+        case 'Peachify': return `https://peachify.top/embed/tv/${id}/${season}/${episode}`;
         default: return `https://vaplayer.ru/embed/tv/${id}/${season}/${episode}?autoplay=1`;
       }
     } else {
@@ -2560,6 +2599,7 @@ function WatchPage() {
         case 'VSrcSU': return `https://vsrc.su/embed/movie?tmdb=${id}`;
         case 'SuperEmbed': return `https://multiembed.mov/?video_id=${id}&tmdb=1`;
         case '2Embed': return `https://www.2embed.cc/embed/${id}`;
+        case 'Peachify': return `https://peachify.top/embed/movie/${id}`;
         default: return `https://vaplayer.ru/embed/movie/${id}?autoplay=1`;
       }
     }
@@ -2594,6 +2634,7 @@ function WatchPage() {
             ) : useAdfree && nativeStreamUrl ? (
                <CustomPlayer 
                   url={nativeStreamUrl} 
+                  type={nativeStreamType}
                   title={`${details?.title || details?.name || 'Video'} ${type === 'tv' ? `(S${season} E${episode})` : ''}`}
                   onBack={() => navigate(-1)}
                   externalCaptions={nativeCaptions}
@@ -3151,6 +3192,172 @@ function CompanyPage() {
   );
 }
 
+function HlsPlayer({ src, className, autoPlay, controls }) {
+  const videoRef = useRef(null);
+  
+  useEffect(() => {
+    if (!videoRef.current || !src) return;
+    
+    // Check if Hls is defined (it's imported globally in this file)
+    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+      const hls = new Hls({
+        debug: false,
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      hls.loadSource(src);
+      hls.attachMedia(videoRef.current);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (autoPlay) {
+          videoRef.current.play().catch(e => console.log('Auto-play prevented:', e));
+        }
+      });
+      return () => {
+        hls.destroy();
+      };
+    } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+      videoRef.current.src = src;
+      videoRef.current.addEventListener('loadedmetadata', () => {
+        if (autoPlay) {
+          videoRef.current.play().catch(e => console.log('Auto-play prevented:', e));
+        }
+      });
+    }
+  }, [src, autoPlay]);
+
+  return <video ref={videoRef} className={className} controls={controls} playsInline autoPlay={autoPlay} />;
+}
+
+function LiveTvPage() {
+  const [channels, setChannels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeChannel, setActiveChannel] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState('All');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    async function fetchChannels() {
+      try {
+        const res = await fetch('http://localhost:4000/api/livetv');
+        if (!res.ok) throw new Error('Failed to fetch channels');
+        const data = await res.json();
+        setChannels(data);
+        if (data.length > 0) setActiveChannel(data[0]);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchChannels();
+  }, []);
+
+  const groups = ['All', ...new Set(channels.map(c => c.group).filter(Boolean))].sort();
+
+  const filteredChannels = channels.filter(c => {
+    const safeName = c.name || '';
+    const safeGroup = c.group || '';
+    const matchesSearch = safeName.toLowerCase().includes(searchQuery.toLowerCase()) || safeGroup.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesGroup = selectedGroup === 'All' || safeGroup === selectedGroup;
+    return matchesSearch && matchesGroup;
+  });
+
+  // Automatically update the video player if the active channel is filtered out
+  useEffect(() => {
+    if (filteredChannels.length > 0) {
+      const isStillVisible = filteredChannels.some(c => c.id === activeChannel?.id);
+      if (!isStillVisible) {
+        setActiveChannel(filteredChannels[0]);
+      }
+    } else {
+      if (activeChannel) setActiveChannel(null);
+    }
+  }, [searchQuery, selectedGroup, channels]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#141414] text-white pt-32 px-4 flex items-center justify-center">
+         <div className="w-12 h-12 border-4 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen bg-[#141414] text-white font-sans flex flex-col h-screen overflow-hidden">
+      <Navbar activeTab="Live TV" setActiveTab={() => {}} onSearch={setSearchQuery} mobileSearchOpen={mobileSearchOpen} toggleMobileSearch={() => setMobileSearchOpen(!mobileSearchOpen)} />
+      
+      {/* Inline Player Section */}
+      <div className="w-full flex-none bg-black pt-20 pb-4 h-[45vh] md:h-[55vh] relative border-b border-white/10 shadow-2xl z-10">
+         {activeChannel ? (
+           <div className="w-full h-full max-w-7xl mx-auto relative flex items-center justify-center group">
+              <HlsPlayer src={activeChannel.url} className="w-full h-full object-contain bg-black" autoPlay controls />
+              <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg flex items-center space-x-3 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                 {activeChannel.logo ? (
+                    <img src={activeChannel.logo} className="h-8 w-auto object-contain max-w-[80px]" alt="logo" onError={(e) => e.target.style.display = 'none'} />
+                 ) : (
+                    <Radio className="w-6 h-6 text-white" />
+                 )}
+                 <div>
+                   <p className="font-bold text-white leading-tight">{activeChannel.name}</p>
+                   <p className="text-xs text-[var(--accent-color)] font-bold uppercase tracking-wider flex items-center mt-0.5"><span className="w-2 h-2 rounded-full bg-[var(--accent-color)] mr-1.5 animate-pulse"></span> LIVE</p>
+                 </div>
+              </div>
+           </div>
+         ) : (
+           <div className="w-full h-full flex items-center justify-center text-gray-500 flex-col">
+              <Radio className="w-12 h-12 mb-4 opacity-50" />
+              <p>Select a channel to play</p>
+           </div>
+         )}
+      </div>
+
+      {/* Guide Section */}
+      <div className="flex-1 overflow-hidden flex flex-col bg-[#141414]">
+         <div className="p-4 border-b border-white/5 flex items-center justify-start flex-none z-10 bg-[#141414]">
+            <div className="flex space-x-2 overflow-x-auto w-full scrollbar-hide pb-2 md:pb-0">
+              {groups.map(g => (
+                <button key={g} onClick={() => setSelectedGroup(g)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroup === g ? 'bg-white text-black' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}>
+                  {g}
+                </button>
+              ))}
+            </div>
+         </div>
+
+         <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 pb-20 md:pb-0">
+               {filteredChannels.map(channel => (
+                 <div key={channel.id} onClick={() => setActiveChannel(channel)} className={`cursor-pointer rounded-xl overflow-hidden border transition-all duration-300 ${activeChannel?.id === channel.id ? 'border-[var(--accent-color)] ring-2 ring-[var(--accent-color)]/50 scale-105 bg-[var(--accent-color)]/10' : 'border-white/10 hover:border-white/30 hover:bg-white/5 bg-white/5'}`}>
+                    <div className="aspect-[4/3] flex items-center justify-center p-4 bg-black/40">
+                       {channel.logo ? (
+                         <img src={channel.logo} className="max-w-full max-h-full object-contain filter drop-shadow-md" alt={channel.name || 'Channel'} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+                       ) : null}
+                       <div className="w-full h-full flex flex-col items-center justify-center text-gray-500" style={{ display: channel.logo ? 'none' : 'flex' }}>
+                         <Radio className="w-8 h-8 mb-2 opacity-50" />
+                         <span className="text-[10px] uppercase font-bold tracking-wider text-center px-2">{(channel.name || 'Unknown').substring(0, 15)}</span>
+                       </div>
+                    </div>
+                    <div className="p-3 bg-black/60 border-t border-white/5 flex flex-col justify-between min-h-[60px]">
+                       <p className="text-white text-xs font-bold line-clamp-1 leading-snug">{channel.name || 'Unknown Channel'}</p>
+                       <p className="text-gray-500 text-[9px] uppercase tracking-wider mt-1 line-clamp-1">{channel.group || 'Uncategorized'}</p>
+                    </div>
+                 </div>
+               ))}
+            </div>
+            {filteredChannels.length === 0 && (
+              <div className="text-center text-gray-500 mt-12 py-12 flex flex-col items-center">
+                 <Radio className="w-16 h-16 mb-4 opacity-20" />
+                 <p>No channels found matching your criteria.</p>
+              </div>
+            )}
+         </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function App() {
   const [showLoader, setShowLoader] = useState(true);
   const [fadeLoader, setFadeLoader] = useState(false);
@@ -3181,6 +3388,7 @@ export default function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/person/:id" element={<PersonPage />} />
           <Route path="/company/:id" element={<CompanyPage />} />
+          <Route path="/live" element={<LiveTvPage />} />
         </Routes>
       </AnimatePresence>
     </>
