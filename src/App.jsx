@@ -239,7 +239,8 @@ function Dashboard() {
   useEffect(() => {
     async function fetchFeatured() {
       try {
-        const endpoint = activeTab === 'TV Shows' ? requests.fetchTrendingTV : requests.fetchTrendingMovies;
+        let endpoint = activeTab === 'TV Shows' ? requests.fetchTrendingTV : requests.fetchTrendingMovies;
+        endpoint += `&_t=${Date.now()}`;
         const request = await fetch(endpoint).then(res => res.json());
         if (request.results?.length > 0) {
           setTrending(request.results);
@@ -933,8 +934,9 @@ const CustomPlayer = ({ src, type = 'm3u8', title, poster, onReady, onError, onP
 
   useEffect(() => {
     if (!playerRef.current || !src) return;
+    const isAndroid = /Android/i.test(navigator.userAgent);
 
-    if (Hls.isSupported() && type !== 'mp4') {
+    if (Hls.isSupported() && type !== 'mp4' && !isAndroid) {
       hlsRef.current = new Hls();
       hlsRef.current.loadSource(src);
       hlsRef.current.attachMedia(playerRef.current);
@@ -942,6 +944,7 @@ const CustomPlayer = ({ src, type = 'm3u8', title, poster, onReady, onError, onP
       hlsRef.current.on(Hls.Events.ERROR, (e, data) => onError?.(data));
     } else {
       playerRef.current.src = src;
+      playerRef.current.addEventListener('loadedmetadata', () => onReady?.());
     }
   }, [src, type]);
 

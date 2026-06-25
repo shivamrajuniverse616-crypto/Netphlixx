@@ -21,7 +21,8 @@ export default function Row({ title, icon: Icon, fetchUrl, isLargeRow, isTop10, 
     async function fetchData() {
       if (!fetchUrl) return;
       try {
-        const request = await fetch(fetchUrl, { signal: abortController.signal }).then(res => res.json());
+        const bustUrl = fetchUrl.includes('?') ? `${fetchUrl}&_t=${Date.now()}` : `${fetchUrl}?_t=${Date.now()}`;
+        const request = await fetch(bustUrl, { signal: abortController.signal }).then(res => res.json());
         let results = request.results || [];
         const now = new Date();
         if (filterUpcoming) {
