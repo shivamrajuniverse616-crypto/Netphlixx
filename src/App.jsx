@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Routes, Route, useNavigate, useParams, Link, useLocation, Navigate } from 'react-router-dom';
 import { Search, Bell, User, Info, X, ChevronLeft, ChevronRight, ChevronDown, Plus, ThumbsUp, Home as HomeIcon, Star, Film, Tv, Radio, Gamepad2, Calendar, Clock, Download, Heart, Bookmark, Share2, Lock } from 'lucide-react';
 import { FaPlay as Play, FaPause as Pause, FaExpand as Maximize, FaVolumeHigh as Volume2, FaVolumeXmark as VolumeX, FaClosedCaptioning as Subtitles, FaGear as Settings, FaRotateRight as RotateCw, FaRotateLeft as RotateCcw, FaArrowLeft as ArrowLeft, FaHeadphones as Headphones, FaCheck as Check } from 'react-icons/fa6';
-import { FastAverageColor } from 'fast-average-color';
+
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import Footer from './components/Footer';
@@ -544,15 +544,9 @@ function TitlePage() {
         } catch(e) {}
       }
 
-      // Color extraction
+      // Color extraction removed due to Android WebView Canvas/CORS crashes
       if (res.poster_path || res.backdrop_path) {
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        img.src = `${IMAGE_BASE_URL_W500}${res.poster_path || res.backdrop_path}`;
-        img.onload = () => {
-          const fac = new FastAverageColor();
-          fac.getColorAsync(img).then(color => setBgColor(color.rgba)).catch(e => console.log(e));
-        };
+        setBgColor('rgba(20,20,20,1)');
       }
     }
     fetchDetails();
