@@ -118,7 +118,7 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#050505] text-white overflow-x-hidden font-sans relative selection:bg-red-600 selection:text-white">
+    <div className="flex flex-col min-h-[100dvh] bg-[#050505] text-white font-sans relative selection:bg-red-600 selection:text-white">
       {/* Full-screen Dynamic Background */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-[#050505]">
         <motion.div 
@@ -146,11 +146,11 @@ const AuthPage = () => {
       {/* Navbar Logo */}
       <div className="absolute top-8 left-8 z-30 cursor-pointer flex items-center space-x-3" onClick={() => navigate('/')}>
         <Film className="w-10 h-10 text-red-600" />
-        <span className="text-3xl font-black tracking-tighter">NETPHLIXX</span>
+        <span className="text-3xl font-black tracking-tighter hidden sm:block">NETPHLIXX</span>
       </div>
 
       {/* Main Content Area */}
-      <div className="relative w-full h-screen flex items-center justify-center p-4 sm:p-8 z-20">
+      <div className="relative w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-8 z-20 py-24">
         <AnimatePresence mode="wait">
         {forgotPassword ? (
           /* ====== FORGOT PASSWORD VIEW ====== */

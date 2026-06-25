@@ -97,7 +97,7 @@ const OnboardingPage = () => {
   const heroScale = useTransform(scrollYProgress, [0, 0.15], [1, 0.95]);
 
   return (
-    <div className="bg-[#050505] min-h-screen text-white font-sans selection:bg-red-600 selection:text-white overflow-x-hidden">
+    <div className="bg-[#050505] min-h-screen text-white font-sans selection:bg-red-600 selection:text-white">
       {/* Dynamic Cinematic Poster Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-[#050505]">
         <motion.div 
@@ -126,7 +126,7 @@ const OnboardingPage = () => {
       </div>
 
       {/* Hero Section */}
-      <section className="h-screen relative z-10 flex flex-col items-center justify-center px-4 md:px-12 text-center">
+      <section className="min-h-[100dvh] relative z-10 flex flex-col items-center justify-center px-4 md:px-12 text-center pt-20 pb-12">
         <motion.div style={{ opacity: heroOpacity, scale: heroScale }} className="max-w-6xl mx-auto flex flex-col items-center">
           
           <motion.div
