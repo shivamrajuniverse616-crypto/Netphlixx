@@ -75,23 +75,9 @@ export default function Hero({ movie, trending = [], onSelect }) {
       ></div>
 
       <div className="absolute inset-0 w-full h-full z-0">
-        <div className={`w-full h-full animate-in fade-in duration-1000 ${trailerKey && !videoEnded ? 'md:hidden' : ''}`}>
+        <div className={`w-full h-full animate-in fade-in duration-1000`}>
            <img src={`${IMAGE_BASE_URL}${movie?.backdrop_path || movie?.poster_path}`} alt="Hero Banner" className="w-full h-full object-cover object-center md:object-top" />
         </div>
-        
-        {trailerKey && !videoEnded && (
-          <div className="relative w-full h-[140%] -top-[20%] pointer-events-none hidden md:block">
-            <iframe
-              src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
-              className="w-full h-full object-cover pointer-events-none"
-              frameBorder="0"
-              allow="autoplay; encrypted-media"
-              onLoad={() => {
-                setTimeout(() => setVideoEnded(true), 120000); 
-              }}
-            ></iframe>
-          </div>
-        )}
       </div>
 
       <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent z-10 hidden md:block"></div>

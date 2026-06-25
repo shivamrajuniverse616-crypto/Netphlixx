@@ -936,7 +936,7 @@ const CustomPlayer = ({ src, type = 'm3u8', title, poster, onReady, onError, onP
     if (!playerRef.current || !src) return;
     const isAndroid = /Android/i.test(navigator.userAgent);
 
-    if (Hls.isSupported() && type !== 'mp4') {
+    if (Hls.isSupported() && type !== 'mp4' && !isAndroid) {
       hlsRef.current = new Hls();
       hlsRef.current.loadSource(src);
       hlsRef.current.attachMedia(playerRef.current);
