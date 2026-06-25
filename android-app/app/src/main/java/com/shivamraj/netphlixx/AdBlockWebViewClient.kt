@@ -16,6 +16,14 @@ class AdBlockWebViewClient(
     private val onNetworkErrorAction: () -> Unit
 ) : WebViewClient() {
 
+    @Volatile
+    private var isWatchPage = false
+
+    override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+        super.doUpdateVisitedHistory(view, url, isReload)
+        isWatchPage = url?.contains("/watch") == true
+    }
+
     companion object {
 
         // ── Blocked ad / tracker domains ───────────────────────────────────
@@ -211,6 +219,8 @@ class AdBlockWebViewClient(
         view: WebView?,
         request: WebResourceRequest?
     ): WebResourceResponse? {
+        if (!isWatchPage) return null
+        
         val url = request?.url?.toString() ?: return null
         val host = request.url.host?.lowercase() ?: return null
 
@@ -239,6 +249,8 @@ class AdBlockWebViewClient(
         view: WebView?,
         request: WebResourceRequest?
     ): Boolean {
+        if (!isWatchPage) return false
+
         val host = request?.url?.host?.lowercase() ?: return false
 
         // Block navigation to ad domains (popup redirects)
@@ -253,6 +265,8 @@ class AdBlockWebViewClient(
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
         onPageFinishedAction.invoke()
+
+        if (!isWatchPage) return
 
         // Inject CSS to hide any ad overlay elements that made it through
         // Note: Do not hide 'iframe' or we will break the embedded video players!

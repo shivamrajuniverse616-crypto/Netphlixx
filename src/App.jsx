@@ -238,11 +238,17 @@ function Dashboard() {
 
   useEffect(() => {
     async function fetchFeatured() {
-      const endpoint = activeTab === 'TV Shows' ? requests.fetchTrendingTV : requests.fetchTrendingMovies;
-      const request = await fetch(endpoint).then(res => res.json());
-      if (request.results?.length > 0) {
-        setTrending(request.results);
-        setFeatured(request.results[Math.floor(Math.random() * request.results.length)]);
+      try {
+        const endpoint = activeTab === 'TV Shows' ? requests.fetchTrendingTV : requests.fetchTrendingMovies;
+        const request = await fetch(endpoint).then(res => res.json());
+        if (request.results?.length > 0) {
+          setTrending(request.results);
+          setFeatured(request.results[Math.floor(Math.random() * request.results.length)]);
+        } else {
+          throw new Error("No results found");
+        }
+      } catch (error) {
+        console.error("Failed to fetch featured movie:", error);
       }
     }
     if (activeTab !== 'My List') fetchFeatured();
