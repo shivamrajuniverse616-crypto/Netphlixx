@@ -42,7 +42,8 @@ data class MovieDetails(
     @SerialName("first_air_date") val firstAirDate: String? = null,
     val runtime: Int? = null,
     val genres: List<Genre> = emptyList(),
-    @SerialName("production_companies") val productionCompanies: List<ProductionCompany> = emptyList()
+    @SerialName("production_companies") val productionCompanies: List<ProductionCompany> = emptyList(),
+    @SerialName("number_of_seasons") val numberOfSeasons: Int? = null
 ) {
     val displayTitle: String get() = title ?: name ?: "Unknown"
     val releaseYear: String get() = (releaseDate ?: firstAirDate)?.take(4) ?: ""

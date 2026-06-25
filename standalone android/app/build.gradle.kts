@@ -2,13 +2,14 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.google.services)
 }
 
 android {
     namespace = "com.example.netphlixx"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.example.netphlixx"
+        applicationId = "com.shivamraj.netphlixx"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -101,6 +102,19 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+
   // Serialization
   implementation(libs.kotlinx.serialization.json)
+
+    // Credentials for Google Sign-In
+    implementation(libs.credentials)
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
+    implementation(libs.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.coroutines.play.services)
 }

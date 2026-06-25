@@ -21,6 +21,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -58,14 +59,48 @@ fun HomeScreen(
                     .fillMaxSize()
                     .verticalScroll(scrollState)
             ) {
-                // Hero Section
-                uiState.heroMovie?.let { hero ->
-                    HeroBanner(
-                        movie = hero,
-                        logoUrl = uiState.heroLogoUrl,
-                        scrollValue = scrollState.value,
-                        onPlayClick = { onMovieClick(hero.id, hero.mediaType ?: "movie") }
-                    )
+                // Hero Section Pager
+                if (uiState.heroMovies.isNotEmpty()) {
+                    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { uiState.heroMovies.size })
+                    
+                    androidx.compose.runtime.LaunchedEffect(pagerState.currentPage) {
+                        kotlinx.coroutines.delay(5000) // Wait 5 seconds
+                        val nextPage = (pagerState.currentPage + 1) % uiState.heroMovies.size
+                        pagerState.animateScrollToPage(nextPage)
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth().aspectRatio(0.8f)) {
+                        androidx.compose.foundation.pager.HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize()
+                        ) { page ->
+                            val heroPair = uiState.heroMovies[page]
+                            HeroBanner(
+                                movie = heroPair.first,
+                                logoUrl = heroPair.second,
+                                onPlayClick = { onMovieClick(heroPair.first.id, heroPair.first.mediaType ?: "movie") }
+                            )
+                        }
+                        
+                        // Pager Indicators
+                        Row(
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            repeat(uiState.heroMovies.size) { iteration ->
+                                val color = if (pagerState.currentPage == iteration) Color.White else Color.White.copy(alpha = 0.5f)
+                                Box(
+                                    modifier = Modifier
+                                        .padding(2.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                        .size(6.dp)
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -75,7 +110,11 @@ fun HomeScreen(
                 MovieRow(title = "Now Playing", movies = uiState.nowPlaying, onMovieClick = onMovieClick)
                 Top10Row(title = "TOP 10\nSHOWS TODAY", movies = uiState.top10, onMovieClick = onMovieClick)
                 MovieRow(title = "Upcoming", movies = uiState.upcoming, onMovieClick = onMovieClick)
+                MovieRow(title = "Action Movies", movies = uiState.actionMovies, onMovieClick = onMovieClick)
+                MovieRow(title = "Sci-Fi & Fantasy", movies = uiState.sciFiMovies, onMovieClick = onMovieClick)
+                MovieRow(title = "Comedy Movies", movies = uiState.comedyMovies, onMovieClick = onMovieClick)
                 MovieRow(title = "Trending TV Shows", movies = uiState.trendingTv, onMovieClick = onMovieClick)
+                MovieRow(title = "Action & Adventure TV", movies = uiState.actionTv, onMovieClick = onMovieClick)
                 
                 Spacer(modifier = Modifier.height(32.dp)) // bottom padding
             }
@@ -109,23 +148,17 @@ fun TopAppBarHeader(scrollValue: Int) {
 }
 
 @Composable
-fun HeroBanner(movie: Movie, logoUrl: String?, scrollValue: Int, onPlayClick: () -> Unit) {
+fun HeroBanner(movie: Movie, logoUrl: String?, onPlayClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(0.8f) // somewhat tall
+            .fillMaxSize() // since the parent box sets the aspect ratio now
     ) {
         val imageUrl = "https://image.tmdb.org/t/p/w780${movie.posterPath ?: movie.backdropPath}"
         AsyncImage(
             model = imageUrl,
             contentDescription = movie.displayTitle,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    // Parallax effect: translate Y based on scroll position
-                    translationY = scrollValue * 0.5f
-                }
+            modifier = Modifier.fillMaxSize()
         )
         // Gradient overlay to fade smoothly into the black background
         Box(

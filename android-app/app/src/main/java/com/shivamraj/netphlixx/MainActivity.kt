@@ -44,6 +44,13 @@ class MainActivity : ComponentActivity() {
         
         super.onCreate(savedInstanceState)
 
+        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        } else {
+            // Force enable for this build to debug Vercel cache issue
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
+
         // Set up the back button callback
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -147,6 +154,9 @@ class MainActivity : ComponentActivity() {
                 cacheMode = WebSettings.LOAD_DEFAULT
                 userAgentString = settings.userAgentString.replace("; wv", "")
             }
+
+            // Clear cache on startup to ensure we get the latest Vercel deployment and invalidate stale Service Workers
+            clearCache(true)
 
             webViewClient = AdBlockWebViewClient(
                 onPageFinishedAction = {

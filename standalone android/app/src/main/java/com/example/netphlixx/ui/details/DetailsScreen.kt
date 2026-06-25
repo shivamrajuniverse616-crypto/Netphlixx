@@ -1,5 +1,10 @@
 package com.example.netphlixx.ui.details
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,7 +23,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -54,339 +62,320 @@ fun DetailsScreen(
 
     val details = uiState.details ?: return
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CustomDarkBg)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        // Top Bar
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.background(CustomDarkGray, CircleShape)
-        ) {
-            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-        }
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Vertical Poster (Top Image)
-        Box(
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        
+        // 1. Blurred Backdrop Image Background (The movie poster behind the main poster)
+        AsyncImage(
+            model = "https://image.tmdb.org/t/p/original${details.backdropPath ?: details.posterPath}",
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(0.66f)
-                .clip(RoundedCornerShape(16.dp))
-        ) {
-            val imageUrl = "https://image.tmdb.org/t/p/w780${details.posterPath}"
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            // "MOST VIEWED ON NETPHLIX" overlay
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "MOST VIEWED ON NETPHLIX ★",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    letterSpacing = 1.sp
+                .fillMaxSize()
+                .blur(radiusX = 40.dp, radiusY = 40.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+        )
+        
+        // Gradient overlays to fade smoothly into the black background at the bottom
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Black.copy(alpha = 0.3f), 
+                        Color.Black.copy(alpha = 0.7f), 
+                        CustomDarkBg,
+                        CustomDarkBg
+                    ),
+                    startY = 0f
                 )
-            }
-        }
+            )
+        )
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Title / Logo
-        if (uiState.logoUrl != null) {
-            AsyncImage(
-                model = "https://image.tmdb.org/t/p/w500${uiState.logoUrl}",
-                contentDescription = details.displayTitle,
-                contentScale = ContentScale.Fit,
+        // 2. Animated Slide-Up Content
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = slideInVertically(
+                initialOffsetY = { it }, // slides entirely from the bottom up
+                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(600)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 100.dp)
-            )
-        } else {
-            Text(
-                text = details.displayTitle.uppercase(),
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Black,
-                color = Color.White,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Production Companies (Studios)
-        if (details.productionCompanies.isNotEmpty()) {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                items(details.productionCompanies.filter { it.logoPath != null }.take(4)) { company ->
+                
+                // Top Bar with Back Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Big Centered Main Poster
+                AsyncImage(
+                    model = "https://image.tmdb.org/t/p/w780${details.posterPath}",
+                    contentDescription = "Poster",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth(0.65f) // taking up ~65% of screen width
+                        .aspectRatio(0.66f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                // Title or Logo
+                if (uiState.logoUrl != null) {
                     AsyncImage(
-                        model = "https://image.tmdb.org/t/p/w300${company.logoPath}",
-                        contentDescription = company.name,
+                        model = "https://image.tmdb.org/t/p/w500${uiState.logoUrl}",
+                        contentDescription = details.displayTitle,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
-                            .height(24.dp)
-                            .padding(horizontal = 8.dp)
+                            .fillMaxWidth(0.8f)
+                            .heightIn(max = 120.dp)
+                    )
+                } else {
+                    Text(
+                        text = details.displayTitle.uppercase(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-
-        // Meta info row
-        val releaseDateStr = details.releaseDate ?: details.firstAirDate
-        if (!releaseDateStr.isNullOrEmpty()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.CalendarMonth, contentDescription = "Release Date", tint = Color.Gray, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                val formattedDate = try {
-                    val sdfIn = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                    val sdfOut = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.US)
-                    val date = sdfIn.parse(releaseDateStr)
-                    sdfOut.format(date!!) + " (United States)"
-                } catch (e: Exception) { releaseDateStr }
-                Text(text = formattedDate, color = Color.LightGray, fontSize = 12.sp)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.Schedule, contentDescription = "Runtime", tint = Color.Gray, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "TBA", color = Color.LightGray, fontSize = 12.sp)
-            
-            if (uiState.ageRating != null) {
-                Spacer(modifier = Modifier.width(16.dp))
-                Box(
-                    modifier = Modifier
-                        .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(text = uiState.ageRating!!, color = Color.LightGray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Genres
-        if (details.genres.isNotEmpty()) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(details.genres) { genre ->
-                    Box(
-                        modifier = Modifier
-                            .background(CustomDarkGray, RoundedCornerShape(16.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(text = genre.name, color = Color.LightGray, fontSize = 12.sp)
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-
-        // Director
-        uiState.director?.let { director ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val imageUrl = "https://image.tmdb.org/t/p/w185${director.profilePath}"
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = director.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color.DarkGray)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(text = director.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(text = "Director", color = Color.Gray, fontSize = 12.sp)
-                }
-            }
-            Spacer(modifier = Modifier.height(32.dp))
-        }
-
-        // Available on
-        if (!releaseDateStr.isNullOrEmpty() && isDateInFuture(releaseDateStr)) {
-            Text("Available on", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .background(Color(0xFF0D253F), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text("THE MOVIE DB", color = Color(0xFF01B4E4), fontWeight = FontWeight.Black, fontSize = 12.sp)
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Exact 5-Box Countdown
-            CountdownTimer(releaseDateStr)
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-
-        // Action Buttons (Pill shaped, multiple rows)
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Button(
-                onClick = { },
-                colors = ButtonDefaults.buttonColors(containerColor = CustomDarkGray),
-                shape = RoundedCornerShape(24.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Watchlist", tint = Color.White, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Watchlist", color = Color.White)
-            }
-            Button(
-                onClick = { },
-                colors = ButtonDefaults.buttonColors(containerColor = CustomDarkGray),
-                shape = RoundedCornerShape(24.dp)
-            ) {
-                Icon(Icons.Default.Notifications, contentDescription = "Reminder", tint = Color.White, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Reminder", color = Color.White)
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { },
-            colors = ButtonDefaults.buttonColors(containerColor = CustomDarkGray),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Share", color = Color.White)
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Casts & Credits
-        if (uiState.cast.isNotEmpty()) {
-            Text(
-                text = "Casts & Credits",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            uiState.cast.take(5).forEach { member ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                    val imageUrl = "https://image.tmdb.org/t/p/w185${member.profilePath}"
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = member.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(Color.DarkGray)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(text = member.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        if (!member.character.isNullOrEmpty()) {
-                            Text(text = member.character, color = Color.Gray, fontSize = 12.sp)
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Production Companies
+                if (details.productionCompanies.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                        details.productionCompanies.filter { it.logoPath != null }.take(2).forEach { company ->
+                            AsyncImage(
+                                model = "https://image.tmdb.org/t/p/w300${company.logoPath}",
+                                contentDescription = company.name,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.height(24.dp).padding(horizontal = 8.dp)
+                            )
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-            }
-            TextButton(onClick = { }) {
-                Text("Show All v", color = Color(0xFF0055FF), fontWeight = FontWeight.Bold)
-            }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Overview
-        Text(
-            text = "Overview",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = details.overview ?: "No overview available.",
-            color = Color.LightGray,
-            style = MaterialTheme.typography.bodyMedium,
-            lineHeight = 20.sp
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Trailer Thumbnail
-        if (uiState.trailer != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable { /* Play Trailer */ }
-            ) {
-                AsyncImage(
-                    model = "https://img.youtube.com/vi/${uiState.trailer!!.key}/hqdefault.jpg",
-                    contentDescription = "Trailer",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = "Play Trailer",
-                        tint = Color.White,
-                        modifier = Modifier.size(64.dp)
-                    )
+                // Meta Info (Release Date)
+                val releaseDateStr = details.releaseDate ?: details.firstAirDate
+                if (!releaseDateStr.isNullOrEmpty()) {
+                    val formattedDate = try {
+                        val sdfIn = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                        val sdfOut = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.US)
+                        val date = sdfIn.parse(releaseDateStr)
+                        sdfOut.format(date!!)
+                    } catch (e: Exception) { releaseDateStr }
+                    Text(text = formattedDate, color = Color.LightGray, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-                Column(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+
+                // Director
+                uiState.director?.let { director ->
+                    Text(text = "Directed by ${director.name}", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                // Countdown Timer (if in future)
+                if (!releaseDateStr.isNullOrEmpty() && isDateInFuture(releaseDateStr)) {
+                    CountdownTimer(releaseDateStr)
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                // Action Buttons Row (My List, Play Now, Share)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    ActionButton(Icons.Default.Add, "My List")
+                    
+                    if (releaseDateStr.isNullOrEmpty() || !isDateInFuture(releaseDateStr)) {
+                        Button(
+                            onClick = { onPlay(details.id, if (details.runtime != null) "movie" else "tv") },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE50914), contentColor = Color.White),
+                            shape = RoundedCornerShape(24.dp), // Pill shape
+                            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = "Play Now")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Play Now", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    } else {
+                        Button(
+                            onClick = { },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f), contentColor = Color.White),
+                            shape = RoundedCornerShape(24.dp),
+                            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                        ) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Remind Me")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Remind Me", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    }
+
+                    ActionButton(Icons.Default.Share, "Share")
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Left Aligned Content Wrapper
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                    // Genres
+                    if (details.genres.isNotEmpty()) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(details.genres) { genre ->
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(text = genre.name, color = Color.White, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+
+                    // Casts & Credits
+                    if (uiState.cast.isNotEmpty()) {
+                        Text(
+                            text = "Casts & Credits",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            items(uiState.cast.take(8)) { member ->
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(80.dp)) {
+                                    val imageUrl = "https://image.tmdb.org/t/p/w185${member.profilePath}"
+                                    AsyncImage(
+                                        model = imageUrl,
+                                        contentDescription = member.name,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(70.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.DarkGray)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = member.name, 
+                                        color = Color.White, 
+                                        fontWeight = FontWeight.Medium, 
+                                        fontSize = 12.sp,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
+
+                    // Overview
                     Text(
-                        text = uiState.trailer!!.name,
-                        color = Color.White,
+                        text = "Overview",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        color = Color.White
                     )
-                    Text("OFFICIAL TRAILER", color = Color.LightGray, fontSize = 10.sp, letterSpacing = 1.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = details.overview ?: "No overview available.",
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = 22.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(48.dp))
+
+                    // Trailer
+                    if (uiState.trailer != null) {
+                        Text(
+                            text = "Trailer",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { /* Play Trailer */ }
+                        ) {
+                            AsyncImage(
+                                model = "https://img.youtube.com/vi/${uiState.trailer!!.key}/hqdefault.jpg",
+                                contentDescription = "Trailer",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            Box(
+                                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = "Play Trailer",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(48.dp))
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+}
 
-        // Play Now (if not in future)
-        if (releaseDateStr.isNullOrEmpty() || !isDateInFuture(releaseDateStr)) {
-            Button(
-                onClick = { onPlay(details.id, if (details.runtime != null) "movie" else "tv") },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Play Now", modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Play Now", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-            Spacer(modifier = Modifier.height(32.dp))
-        }
+@Composable
+fun ActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { }) {
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = label, color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+fun isDateInFuture(dateStr: String): Boolean {
+    return getDiff(dateStr) > 0
+}
+
+fun getDiff(dateStr: String): Long {
+    try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val date = sdf.parse(dateStr) ?: return 0
+        return date.time - System.currentTimeMillis()
+    } catch (e: Exception) {
+        return 0
     }
 }
 
@@ -446,19 +435,5 @@ fun TimeBox(value: String, label: String) {
                 color = Color.Gray
             )
         }
-    }
-}
-
-fun isDateInFuture(dateStr: String): Boolean {
-    return getDiff(dateStr) > 0
-}
-
-fun getDiff(dateStr: String): Long {
-    try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        val date = sdf.parse(dateStr) ?: return 0
-        return date.time - System.currentTimeMillis()
-    } catch (e: Exception) {
-        return 0
     }
 }

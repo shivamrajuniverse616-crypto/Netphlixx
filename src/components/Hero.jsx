@@ -70,7 +70,7 @@ export default function Hero({ movie, trending = [], onSelect }) {
     <header className="h-[65vh] md:h-[85vh] relative text-white bg-[#141414] overflow-hidden">
       {/* Dynamic Color Gradient Overlay */}
       <div 
-        className="absolute inset-0 w-full h-full z-0 transition-colors duration-1000 mix-blend-screen opacity-40" 
+        className="absolute inset-0 w-full h-full z-0 transition-colors duration-1000 opacity-60" 
         style={{ background: `radial-gradient(circle at 70% 30%, ${bgColor} 0%, transparent 60%)` }}
       ></div>
 

@@ -24,6 +24,18 @@ interface TmdbApi {
     @GET("movie/popular")
     suspend fun getPopularMovies(@Query("api_key") apiKey: String): TmdbResponse<Movie>
 
+    @GET("discover/movie")
+    suspend fun getMoviesByGenre(
+        @Query("with_genres") genreId: Int,
+        @Query("api_key") apiKey: String
+    ): TmdbResponse<Movie>
+
+    @GET("discover/tv")
+    suspend fun getTvByGenre(
+        @Query("with_genres") genreId: Int,
+        @Query("api_key") apiKey: String
+    ): TmdbResponse<Movie>
+
     @GET("movie/{movie_id}")
     suspend fun getMovieDetails(
         @Path("movie_id") movieId: Int,
