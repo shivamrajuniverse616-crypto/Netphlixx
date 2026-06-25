@@ -151,7 +151,7 @@ class MainActivity : ComponentActivity() {
                 loadWithOverviewMode = true
                 setSupportMultipleWindows(true)
                 javaScriptCanOpenWindowsAutomatically = true
-                cacheMode = WebSettings.LOAD_DEFAULT
+                cacheMode = WebSettings.LOAD_NO_CACHE
                 userAgentString = settings.userAgentString.replace("; wv", "")
             }
 
@@ -161,8 +161,8 @@ class MainActivity : ComponentActivity() {
             webViewClient = AdBlockWebViewClient(
                 onPageFinishedAction = {
                     swipeRefreshLayout.isRefreshing = false
-                    // Force unregister Service Worker to bypass Vercel PWA cache
-                    webView.evaluateJavascript("if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){if(r.length>0){for(let i=0;i<r.length;i++){r[i].unregister()}; window.location.reload(true);}})}", null)
+                    // Force unregister Service Worker properly and reload
+                    webView.evaluateJavascript("if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){if(r.length>0){Promise.all(r.map(function(sw){return sw.unregister()})).then(function(){window.location.reload(true);})}})}", null)
                 },
                 onNetworkErrorAction = {
                     swipeRefreshLayout.isRefreshing = false
