@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Routes, Route, useNavigate, useParams, Link, useLocation } from 'react-router-dom';
-import { Search, Bell, User, Info, X, ChevronLeft, ChevronRight, ChevronDown, Plus, ThumbsUp, Home as HomeIcon, Star, Film, Tv, Radio, Gamepad2, Calendar, Clock, Download, Heart, Bookmark, Share2 } from 'lucide-react';
+import { Routes, Route, useNavigate, useParams, Link, useLocation, Navigate } from 'react-router-dom';
+import { Search, Bell, User, Info, X, ChevronLeft, ChevronRight, ChevronDown, Plus, ThumbsUp, Home as HomeIcon, Star, Film, Tv, Radio, Gamepad2, Calendar, Clock, Download, Heart, Bookmark, Share2, Lock } from 'lucide-react';
 import { FaPlay as Play, FaPause as Pause, FaExpand as Maximize, FaVolumeHigh as Volume2, FaVolumeXmark as VolumeX, FaClosedCaptioning as Subtitles, FaGear as Settings, FaRotateRight as RotateCw, FaRotateLeft as RotateCcw, FaArrowLeft as ArrowLeft, FaHeadphones as Headphones, FaCheck as Check } from 'react-icons/fa6';
 import { FastAverageColor } from 'fast-average-color';
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion';
@@ -10,842 +10,21 @@ import Footer from './components/Footer';
 import NetflixIntro from './components/NetflixIntro';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
+import { auth } from './firebase';
 
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-const BASE_URL = 'https://api.themoviedb.org/3';
-const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
-const IMAGE_BASE_URL_W500 = 'https://image.tmdb.org/t/p/w500';
-
-const fac = new FastAverageColor();
-
-// Endpoints
-const requests = {
-  fetchNowPlayingMovies: `${BASE_URL}/movie/now_playing?api_key=${API_KEY}`,
-  fetchUpcomingMovies: `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_date.gte=${new Date().toISOString().split('T')[0]}&sort_by=popularity.desc`,
-  fetchTrendingMovies: `${BASE_URL}/trending/movie/week?api_key=${API_KEY}`,
-  fetchActionMovies: `${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=28`,
-  fetchSciFiMovies: `${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=878`,
-  fetchComedyMovies: `${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=35`,
-  
-  fetchTrendingTV: `${BASE_URL}/trending/tv/week?api_key=${API_KEY}`,
-  fetchActionTV: `${BASE_URL}/discover/tv?api_key=${API_KEY}&with_genres=10759`,
-  fetchSciFiTV: `${BASE_URL}/discover/tv?api_key=${API_KEY}&with_genres=10765`,
-  fetchComedyTV: `${BASE_URL}/discover/tv?api_key=${API_KEY}&with_genres=35`,
-  
-  fetchSearch: `${BASE_URL}/search/multi?api_key=${API_KEY}&query=`,
-};
-
-
-function HoverPortal({ children, coordinates, isHovered, onMouseLeave }) {
-  useEffect(() => {
-    if (isHovered) {
-      const handleScroll = () => onMouseLeave();
-      window.addEventListener('wheel', handleScroll, { passive: true });
-      window.addEventListener('touchmove', handleScroll, { passive: true });
-      return () => {
-        window.removeEventListener('wheel', handleScroll);
-        window.removeEventListener('touchmove', handleScroll);
-      };
-    }
-  }, [isHovered, onMouseLeave]);
-
-  if (!isHovered || !coordinates) return null;
-  return createPortal(
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1.15 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.3 }}
-      className="fixed z-[999] rounded-md shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-[#141414] overflow-hidden"
-      style={{
-        top: coordinates.top - 20,
-        left: coordinates.left - 20,
-        width: coordinates.width + 40,
-        height: 'auto',
-      }}
-      onMouseLeave={onMouseLeave}
-    >
-      {children}
-    </motion.div>,
-    document.body
-  );
-}
-
-function MagneticButton({ children, className = '', onClick, type = "button" }) {
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-
-  const mouseXSpring = useSpring(x, { stiffness: 150, damping: 15, mass: 0.1 });
-  const mouseYSpring = useSpring(y, { stiffness: 150, damping: 15, mass: 0.1 });
-  
-  const [ripples, setRipples] = useState([]);
-
-  const handleMouseMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const centerX = rect.left + width / 2;
-    const centerY = rect.top + height / 2;
-    const pullX = ((e.clientX - centerX) / width) * 15; 
-    const pullY = ((e.clientY - centerY) / height) * 15;
-    x.set(pullX);
-    y.set(pullY);
-  };
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-  
-  const handleMouseDown = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const rippleX = e.clientX - rect.left;
-    const rippleY = e.clientY - rect.top;
-    setRipples(prev => [...prev, { x: rippleX, y: rippleY, id: Date.now() }]);
-  };
-
-  return (
-    <motion.button
-      type={type}
-      onClick={onClick}
-      className={`relative overflow-hidden outline-none ${className}`}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onMouseDown={handleMouseDown}
-      style={{ x: mouseXSpring, y: mouseYSpring }}
-      whileTap={{ scale: 0.95 }}
-      whileHover={{ scale: 1.05 }}
-    >
-      {ripples.map(ripple => (
-        <motion.span
-          key={ripple.id}
-          initial={{ scale: 0, opacity: 0.5 }}
-          animate={{ scale: 4, opacity: 0 }}
-          transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-          onAnimationComplete={() => setRipples(prev => prev.filter(r => r.id !== ripple.id))}
-          className="absolute rounded-full bg-white pointer-events-none z-0"
-          style={{
-            left: ripple.x,
-            top: ripple.y,
-            width: Math.max(100, 100),
-            height: Math.max(100, 100),
-            marginLeft: -50,
-            marginTop: -50,
-          }}
-        />
-      ))}
-      <span className="relative z-10 flex items-center justify-center w-full h-full">{children}</span>
-    </motion.button>
-  );
-}
-
-function getMediaType(item) {
-  if (item?.media_type) return item.media_type;
-  if (item?.title) return 'movie';
-  if (item?.name) return 'tv';
-  return 'movie';
-}
-
-function Navbar({ onSearch, activeTab, setActiveTab, toggleMobileSearch, mobileSearchOpen }) {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
-
-  const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
-    }
-  };
-
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [accentColor, setAccentColor] = useLocalStorage('netphlix_accent', '#E50914');
-  const searchInputRef = useRef(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    document.documentElement.style.setProperty('--accent-color', accentColor);
-  }, [accentColor]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 0);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
-    if (onSearch) onSearch(e.target.value);
-  };
-
-  const toggleSearch = () => {
-    setSearchOpen(!searchOpen);
-    if (!searchOpen) {
-      setTimeout(() => searchInputRef.current?.focus(), 100);
-    } else {
-      setSearchQuery('');
-      if (onSearch) onSearch('');
-    }
-  };
-
-  const handleTabClick = (item) => {
-    setActiveTab(item);
-    setSearchQuery('');
-    if (onSearch) onSearch('');
-    if (mobileSearchOpen) toggleMobileSearch();
-    if (item === 'Live TV') {
-      navigate('/live');
-    } else {
-      navigate('/', { state: { activeTab: item } });
-    }
-  };
-
-  const navItems = [
-    { name: 'Movies', icon: Film },
-    { name: 'TV', icon: Tv },
-    { name: 'Live TV', icon: Radio }
-  ];
-
-  return (
-    <>
-      {/* Desktop Navbar */}
-      <nav
-        className={`fixed top-0 w-full z-50 flex items-center justify-between px-4 md:px-8 py-3 transition-all duration-500 ${
-          isScrolled ? 'bg-shows-dark/90 backdrop-blur-md shadow-2xl' : 'bg-gradient-to-b from-shows-dark/80 to-transparent'
-        }`}
-      >
-        <div className="flex items-center">
-          <h1 
-            className="font-black text-2xl md:text-3xl tracking-tight cursor-pointer hover:scale-105 transition-transform flex items-center font-display"
-            onClick={() => handleTabClick('Home')}
-          >
-            <span className="text-netflix-red">NETPHLIX</span>
-          </h1>
-        </div>
-
-        {/* Center Search Bar */}
-        <div className="hidden md:flex flex-1 justify-center max-w-2xl px-8">
-          <div className="flex items-center w-full bg-[#2a2a2a] rounded-full px-4 py-2 border border-transparent focus-within:border-gray-500 focus-within:bg-[#1f1f1f] transition-all duration-300">
-            <Search className="w-5 h-5 text-gray-400 mr-3" />
-            <input
-              type="text"
-              placeholder="Type / to search"
-              className="bg-transparent text-white w-full outline-none placeholder-gray-500"
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onClick={() => { if(onSearch && !searchQuery) onSearch(''); }}
-            />
-            {searchQuery && (
-              <X className="w-4 h-4 cursor-pointer text-gray-400 hover:text-white transition-colors" onClick={() => {setSearchQuery(''); if(onSearch) onSearch('');}} />
-            )}
-          </div>
-        </div>
-        
-        {/* Desktop Right Side */}
-        <div className="hidden md:flex items-center space-x-2 text-white">
-          <div className="flex space-x-2 mr-4">
-            {navItems.map(item => (
-              <button 
-                key={item.name}
-                onClick={() => handleTabClick(item.name === 'TV' ? 'TV Shows' : item.name)}
-                className={`flex items-center px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 border ${activeTab === item.name || (activeTab === 'TV Shows' && item.name === 'TV') ? 'bg-white text-black border-white shadow-md' : 'border-white/20 text-gray-300 hover:text-white hover:bg-white/10'}`}
-              >
-                <item.icon className="w-4 h-4 mr-2" />
-                {item.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center space-x-3 ml-2">
-            <MagneticButton className="w-10 h-10 rounded-full border border-gray-600 bg-[#2a2a2a] flex items-center justify-center cursor-pointer hover:border-white transition-colors" onClick={() => navigate('/profile')}>
-               <User className="w-5 h-5 text-gray-300 pointer-events-none" />
-            </MagneticButton>
-            <MagneticButton className="w-10 h-10 rounded-full border border-transparent flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors" onClick={() => setShowSettings(true)}>
-               <Settings className="w-5 h-5 text-gray-300 pointer-events-none" />
-            </MagneticButton>
-          </div>
-        </div>
-
-        {/* Mobile Search Input */}
-        {mobileSearchOpen && (
-          <div className="md:hidden absolute top-full left-0 w-full bg-[#141414]/95 backdrop-blur-xl p-4 flex items-center shadow-2xl border-b border-white/10 animate-in slide-in-from-top-2 duration-300">
-             <Search className="w-5 h-5 text-gray-400 mr-3" />
-             <input
-                type="text"
-                autoFocus
-                placeholder="Search Netphlix..."
-                className="bg-transparent text-white w-full outline-none text-lg"
-                onChange={(e) => { if (onSearch) onSearch(e.target.value); }}
-             />
-             <X className="w-6 h-6 text-gray-400 cursor-pointer hover:text-white" onClick={toggleMobileSearch} />
-          </div>
-        )}
-      </nav>
-
-      {/* Full Screen Dark Overlay removed for better UX */}
-
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center animate-in fade-in duration-300 p-4">
-          <div className="bg-[#141414] border border-gray-800 rounded-xl p-6 md:p-8 w-full max-w-md shadow-2xl relative animate-in zoom-in-95 duration-300">
-             <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition">
-               <X className="w-6 h-6" />
-             </button>
-             <h2 className="text-2xl font-bold text-white mb-6">Settings</h2>
-             
-             <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-gray-400 font-medium mb-2 block">Theme Accent Color</label>
-                  <div className="flex flex-wrap gap-3">
-                     {[
-                       {name: 'Netflix Red', hex: '#E50914'},
-                       {name: 'Neon Blue', hex: '#00D8FF'},
-                       {name: 'Cyberpunk Purple', hex: '#B829EA'},
-                       {name: 'Matrix Green', hex: '#00FF41'},
-                       {name: 'Gold', hex: '#FFD700'}
-                     ].map(color => (
-                        <button 
-                          key={color.name}
-                          onClick={() => setAccentColor(color.hex)}
-                          className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${accentColor === color.hex ? 'border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.4)]' : 'border-transparent hover:scale-105'}`}
-                          style={{ backgroundColor: color.hex }}
-                          title={color.name}
-                        >
-                          {accentColor === color.hex && <Check className="w-5 h-5 text-white drop-shadow-md" />}
-                        </button>
-                     ))}
-                  </div>
-                </div>
-             </div>
-
-             <div className="mt-8 p-6 bg-gradient-to-r from-netflix-red/20 to-purple-900/20 border border-netflix-red/30 rounded-xl relative overflow-hidden group">
-               <div className="absolute inset-0 bg-gradient-to-r from-netflix-red/0 via-white/5 to-netflix-red/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-               {deferredPrompt ? (
-                 <div className="relative flex flex-col items-center">
-                   <div className="w-12 h-12 bg-netflix-red rounded-full flex items-center justify-center mb-4 shadow-[0_0_15px_rgba(229,9,20,0.5)]">
-                     <Download className="w-6 h-6 text-white" />
-                   </div>
-                   <h3 className="text-white font-bold text-lg mb-1">Get the Netphlix App</h3>
-                   <p className="text-gray-400 text-sm text-center mb-4">Install our PWA for the best experience, offline access, and faster loading!</p>
-                   <button onClick={handleInstall} className="w-full bg-white text-black font-bold py-3 rounded-full hover:scale-105 transition-transform shadow-lg">
-                     Install Now
-                   </button>
-                 </div>
-               ) : (
-                 <div className="relative flex flex-col items-center">
-                   <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mb-4 border border-green-500/50">
-                     <Check className="w-6 h-6 text-green-500" />
-                   </div>
-                   <h3 className="text-white font-bold text-lg mb-1">App Installed</h3>
-                   <p className="text-gray-400 text-sm text-center">You are currently running the optimized web app experience.</p>
-                 </div>
-               )}
-             </div>
-             
-             <div className="mt-8 pt-6 border-t border-gray-800 flex justify-end">
-                <button onClick={() => setShowSettings(false)} className="bg-netflix-red text-white px-6 py-2 rounded font-bold hover:bg-red-700 transition">Done</button>
-             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-[#141414]/80 backdrop-blur-xl border-t border-white/5 flex justify-around items-center py-3 z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
-         <div className="flex flex-col items-center cursor-pointer text-gray-400 hover:text-white transition" onClick={() => handleTabClick('Home')}>
-            <HomeIcon className={`w-6 h-6 ${activeTab === 'Home' ? 'text-white' : ''}`} />
-            <span className="text-[10px] mt-1">Home</span>
-         </div>
-         <div className="flex flex-col items-center cursor-pointer text-gray-400 hover:text-white transition" onClick={toggleMobileSearch}>
-            <Search className={`w-6 h-6 ${mobileSearchOpen ? 'text-white' : ''}`} />
-            <span className="text-[10px] mt-1">Search</span>
-         </div>
-         <div className="flex flex-col items-center cursor-pointer text-gray-400 hover:text-white transition" onClick={() => navigate('/live')}>
-            <Radio className={`w-6 h-6 ${location.pathname === '/live' ? 'text-white' : ''}`} />
-            <span className="text-[10px] mt-1">Live TV</span>
-         </div>
-         <div className="flex flex-col items-center cursor-pointer text-gray-400 hover:text-white transition" onClick={() => navigate('/profile')}>
-            <Plus className="w-6 h-6" />
-            <span className="text-[10px] mt-1">My List</span>
-         </div>
-      </div>
-    </>
-  );
-}
-
-function Hero({ movie, trending = [], onSelect }) {
-  const [trailerKey, setTrailerKey] = useState(null);
-  const [isMuted, setIsMuted] = useState(true);
-  const [videoEnded, setVideoEnded] = useState(false);
-  const [bgColor, setBgColor] = useState('rgba(20,20,20,1)');
-  const [details, setDetails] = useState(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!movie) return;
-    setVideoEnded(false);
-    
-    // Extract dynamic color
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.src = `${IMAGE_BASE_URL_W500}${movie.backdrop_path}`;
-    img.onload = () => {
-      fac.getColorAsync(img)
-        .then(color => {
-          setBgColor(color.rgba);
-        })
-        .catch(e => console.log(e));
-    };
-
-    async function fetchTrailer() {
-      const mediaType = getMediaType(movie);
-      
-      try {
-        const detailsRes = await fetch(`${BASE_URL}/${mediaType}/${movie.id}?api_key=${API_KEY}`).then(r => r.json());
-        setDetails(detailsRes);
-      } catch(e) { console.error(e); }
-
-      const url = `${BASE_URL}/${mediaType}/${movie.id}/videos?api_key=${API_KEY}`;
-      try {
-        const res = await fetch(url).then(r => r.json());
-        const trailer = res.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-        setTrailerKey(trailer ? trailer.key : null);
-      } catch(e) {
-        setTrailerKey(null);
-      }
-    }
-    fetchTrailer();
-  }, [movie]);
-
-  if (!movie) return <div className="h-[60vh] md:h-[80vh] bg-[#141414]" />;
-
-  const truncate = (str, n) => {
-    return str?.length > n ? str.substr(0, n - 1) + '...' : str;
-  };
-
-  const isTV = getMediaType(movie) === 'tv';
-
-  const onPlay = () => {
-    navigate(`/watch/${isTV ? 'tv' : 'movie'}/${movie.id}`);
-  };
-
-  const onInfo = () => {
-    navigate(`/title/${isTV ? 'tv' : 'movie'}/${movie.id}`, { state: { movie } });
-  };
-
-  return (
-    <header className="h-[65vh] md:h-[85vh] relative text-white bg-[#141414] overflow-hidden">
-      {/* Dynamic Color Gradient Overlay */}
-      <div 
-        className="absolute inset-0 w-full h-full z-0 transition-colors duration-1000 mix-blend-screen opacity-40" 
-        style={{ background: `radial-gradient(circle at 70% 30%, ${bgColor} 0%, transparent 60%)` }}
-      ></div>
-
-      <div className="absolute inset-0 w-full h-full z-0">
-        <div className={`w-full h-full animate-in fade-in duration-1000 ${trailerKey && !videoEnded ? 'md:hidden' : ''}`}>
-           <picture>
-             <source media="(min-width: 768px)" srcSet={`${IMAGE_BASE_URL}${movie?.backdrop_path || movie?.poster_path}`} />
-             <img src={`${IMAGE_BASE_URL_W500}${movie?.poster_path || movie?.backdrop_path}`} alt="Hero Banner" className="w-full h-full object-cover object-center md:object-top" />
-           </picture>
-        </div>
-        
-        {trailerKey && !videoEnded && (
-          <div className="relative w-full h-[140%] -top-[20%] pointer-events-none hidden md:block">
-            <iframe
-              src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
-              className="w-full h-full object-cover pointer-events-none"
-              frameBorder="0"
-              allow="autoplay; encrypted-media"
-              onLoad={() => {
-                setTimeout(() => setVideoEnded(true), 120000); 
-              }}
-            ></iframe>
-          </div>
-        )}
-      </div>
-
-      <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent z-10 hidden md:block"></div>
-      <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/40 to-transparent z-10 md:via-[#141414]/20"></div>
-      
-      <AnimatePresence mode="wait">
-        <motion.div 
-          key={movie?.id}
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 50 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="absolute inset-y-0 left-0 px-4 md:ml-12 w-full md:max-w-2xl z-20 flex flex-col items-center md:items-start justify-center text-center md:text-left pt-20 md:pt-24 pb-12"
-        >
-          <div className="flex items-center justify-center md:justify-start space-x-2 mb-2 md:mb-4">
-            <div className="flex items-center justify-center w-5 h-5 md:w-6 md:h-6 bg-[#E50914] text-white font-black text-[10px] md:text-xs rounded-sm shadow-lg">1S</div>
-            <span className="text-gray-300 text-[10px] md:text-xs font-bold tracking-[0.2em]">{isTV ? 'SERIES' : 'FILM'}</span>
-          </div>
-        
-        <h1 className="text-5xl md:text-[75px] font-black font-sans uppercase text-white tracking-tighter mb-4 drop-shadow-2xl leading-[0.9] transition-all duration-700">
-          {movie?.title || movie?.name || movie?.original_name}
-        </h1>
-        
-        <div className="hidden md:flex items-center space-x-3 mb-6">
-           <div className="flex items-center space-x-1.5 bg-[#222]/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium">
-             <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-             <span className="text-white">{movie?.vote_average ? movie.vote_average.toFixed(1) : 'NR'}</span>
-           </div>
-           {details?.runtime && (
-             <div className="bg-[#222]/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium text-white">
-               {Math.floor(details.runtime / 60)}h {details.runtime % 60}m
-             </div>
-           )}
-           {details?.genres?.[0] && (
-             <div className="bg-[#222]/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium text-white">
-               {details.genres[0].name}
-             </div>
-           )}
-        </div>
-
-        <div className="hidden md:block mb-8 max-w-xl">
-          <p className="text-sm md:text-base text-gray-200 font-medium drop-shadow-2xl leading-snug line-clamp-3">
-            {movie?.overview}
-          </p>
-        </div>
-        
-        <div className="flex space-x-4 w-full md:w-auto justify-center md:justify-start">
-          <MagneticButton 
-            onClick={onPlay}
-            className="w-12 h-12 md:w-14 md:h-14 bg-[#0A4191] rounded-full flex items-center justify-center hover:bg-blue-600 transition-all shadow-xl"
-          >
-            <Play className="w-5 h-5 md:w-6 md:h-6 text-white fill-white ml-1 pointer-events-none" />
-          </MagneticButton>
-          <MagneticButton 
-            onClick={onInfo}
-            className="flex items-center px-6 py-2 md:py-0 md:h-14 bg-[#0A4191]/40 text-white font-medium rounded-full border border-[#0A4191] hover:bg-[#0A4191]/60 transition-all backdrop-blur-md shadow-lg"
-          >
-             <div className="w-4 h-4 border-2 border-white rounded-full flex items-center justify-center mr-2 pointer-events-none"><span className="text-[10px] font-bold">i</span></div>
-             <span className="pointer-events-none">See More</span>
-          </MagneticButton>
-        </div>
-        </motion.div>
-      </AnimatePresence>
-
-      {trending?.length > 0 && (
-         <div className="absolute bottom-6 md:bottom-8 right-4 md:right-8 z-40 hidden md:flex space-x-3 overflow-x-auto scrollbar-hide max-w-[40vw] p-2">
-            {trending.slice(0, 6).map(m => (
-               <div 
-                 key={m.id} 
-                 onClick={() => onSelect && onSelect(m)}
-                 className={`flex-none w-32 aspect-video rounded-lg cursor-pointer overflow-hidden transition-all duration-300 shadow-xl border-2 ${movie?.id === m.id ? 'border-blue-500 scale-105 brightness-110' : 'border-white/10 opacity-60 hover:opacity-100 hover:border-white/30'}`}
-               >
-                  <img src={`${IMAGE_BASE_URL_W500}${m.backdrop_path}`} className="w-full h-full object-cover pointer-events-none" />
-               </div>
-            ))}
-         </div>
-      )}
-
-      {trailerKey && !videoEnded && (
-        <div className="hidden md:flex absolute bottom-32 right-12 z-30 items-center space-x-4">
-           <button 
-             onClick={() => setIsMuted(!isMuted)}
-             className="w-10 h-10 rounded-full border border-white/50 bg-black/20 backdrop-blur-md flex items-center justify-center hover:bg-white/10 transition-colors text-white"
-           >
-             {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-           </button>
-           <div className="bg-black/40 backdrop-blur-md border-l-[3px] border-l-white text-white py-1 px-4 text-sm font-semibold tracking-widest shadow-lg">
-             18+
-           </div>
-        </div>
-      )}
-    </header>
-  );
-}
-
-const RowCard = React.memo(function RowCard({ movie, isLargeRow, isTop10, onNavigate, onRemove }) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [trailer, setTrailer] = useState(null);
-  const cardRef = useRef(null);
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      onNavigate(movie, 'play');
-    }
-  };
-
-  useEffect(() => {
-    let timeout;
-    let abortController;
-    if (isHovered) {
-      abortController = new AbortController();
-      timeout = setTimeout(async () => {
-         try {
-           const type = getMediaType(movie);
-           const res = await fetch(`${BASE_URL}/${type}/${movie.id}/videos?api_key=${API_KEY}`, { signal: abortController.signal }).then(r => r.json());
-           const t = res.results?.find(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
-           if (t) setTrailer(t.key);
-         } catch (e) {
-           if (e.name !== 'AbortError') console.log('Error fetching trailer for row card', e);
-         }
-      }, 700);
-    } else {
-      setTrailer(null);
-    }
-    return () => {
-      clearTimeout(timeout);
-      if (abortController) abortController.abort();
-    };
-  }, [isHovered, movie.id]);
-
-  const ratingColor = movie.vote_average >= 8 ? 'ring-green-400' : movie.vote_average >= 6 ? 'ring-yellow-400' : 'ring-red-400';
-
-  return (
-    <motion.div 
-      ref={cardRef}
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      whileHover={{ scale: 1.05, zIndex: 50 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`group/card relative flex-none cursor-pointer rounded-md overflow-visible bg-transparent focus:ring-4 focus:ring-white outline-none ${
-        isLargeRow ? 'w-32 md:w-48' : 'w-44 md:w-60'
-      } z-10 origin-center snap-center flex flex-col gap-2`}
-      onClick={() => onNavigate(movie, 'info')}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div className={`relative w-full ${isLargeRow ? 'aspect-[2/3]' : 'aspect-video'} rounded-lg overflow-hidden shadow-lg group-hover/card:shadow-[0_10px_20px_rgba(43,130,246,0.3)] transition-all`}>
-        {isHovered && trailer && !isLargeRow ? (
-          <iframe
-            src={`https://www.youtube.com/embed/${trailer}?autoplay=1&mute=1&controls=0&modestbranding=1&loop=1&playlist=${trailer}`}
-            className="w-full h-full object-cover scale-[1.3] pointer-events-none"
-            allow="autoplay; encrypted-media"
-          />
-        ) : (
-          <LazyLoadImage effect="blur"
-            src={`${isLargeRow ? IMAGE_BASE_URL_W500 : IMAGE_BASE_URL}${isLargeRow ? movie.poster_path : (movie.backdrop_path || movie.poster_path)}`}
-            alt={movie.title || movie.name}
-            className="w-full h-full object-cover"
-          />
-        )}
-        
-        {/* Rating Badge */}
-        {movie.vote_average > 0 && !isTop10 && (
-          <div className={`absolute top-2 left-2 w-8 h-8 rounded-full bg-[#111] flex items-center justify-center ring-2 ${ratingColor} shadow-black/50 shadow-md`}>
-            <span className="text-white text-[10px] font-bold">{movie.vote_average.toFixed(1)}</span>
-          </div>
-        )}
-
-        {isLargeRow && !isTop10 && (
-          <div className="absolute bottom-0 left-0 right-0 bg-blue-600 text-white text-center py-1 font-semibold text-[9px] uppercase tracking-wider flex items-center justify-center z-20 shadow-lg shadow-black/50">
-            Most Viewed on NETPHLIX <Star className="w-2.5 h-2.5 ml-1 fill-white" />
-          </div>
-        )}
-
-        {onRemove && (
-          <MagneticButton 
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition border border-white/20 z-50"
-          >
-            <X className="w-4 h-4 pointer-events-none" />
-          </MagneticButton>
-        )}
-
-        {/* Continue watching progress bar */}
-        {movie.progress && (
-           <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-600 z-50">
-              <div className="h-full bg-netflix-red" style={{ width: `${movie.progress}%` }}></div>
-           </div>
-        )}
-      </div>
-
-      {!isTop10 && (
-        <div className="flex flex-col px-1">
-          <h3 className="text-gray-200 font-semibold text-sm line-clamp-1 group-hover/card:text-netflix-red transition-colors">
-            {movie.title || movie.name}
-          </h3>
-          <div className="flex items-center justify-between mt-1">
-            <div className="flex items-center text-xs text-gray-500 space-x-2">
-              <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-              <span className="text-gray-300 font-bold">{movie.vote_average?.toFixed(1)}</span>
-              <span>{movie.release_date?.substring(0,4) || movie.first_air_date?.substring(0,4)}</span>
-            </div>
-          </div>
-          
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={isHovered ? { height: 'auto', opacity: 1, marginTop: 8 } : { height: 0, opacity: 0, marginTop: 0 }}
-            className="overflow-hidden"
-          >
-            <MagneticButton className="w-full bg-white/10 hover:bg-netflix-red text-white text-xs font-bold py-1.5 rounded-full transition-colors flex items-center justify-center">
-              <span className="pointer-events-none flex items-center">Details <ChevronRight className="w-3 h-3 ml-1" /></span>
-            </MagneticButton>
-          </motion.div>
-        </div>
-      )}
-    </motion.div>
-  );
-});
-
-function Row({ title, icon: Icon, fetchUrl, isLargeRow, isTop10, moviesArray, onRemove, filterUpcoming, filterReleased }) {
-  const [movies, setMovies] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const rowRef = useRef(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (moviesArray) {
-      setMovies(moviesArray);
-      setIsLoading(false);
-      return;
-    }
-    const abortController = new AbortController();
-    async function fetchData() {
-      if (!fetchUrl) return;
-      try {
-        const request = await fetch(fetchUrl, { signal: abortController.signal }).then(res => res.json());
-        let results = request.results || [];
-        const now = new Date();
-        if (filterUpcoming) {
-          results = results.filter(m => new Date(m.release_date || m.first_air_date) > now);
-        }
-        if (filterReleased) {
-          results = results.filter(m => new Date(m.release_date || m.first_air_date) <= now);
-        }
-        setMovies(results);
-      } catch (err) {
-        if (err.name !== 'AbortError') console.error('Fetch error:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchData();
-    return () => abortController.abort();
-  }, [fetchUrl, moviesArray]);
-
-  const handleScroll = (direction) => {
-    if (rowRef.current) {
-      const { scrollLeft, clientWidth } = rowRef.current;
-      const scrollTo = direction === 'left' ? scrollLeft - clientWidth + 100 : scrollLeft + clientWidth - 100;
-      rowRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
-    }
-  };
-
-  const onNavigate = (movie, action) => {
-    const mediaType = getMediaType(movie);
-    if (action === 'play') {
-      navigate(`/watch/${mediaType}/${movie.id}`);
-    } else {
-      navigate(`/title/${mediaType}/${movie.id}`, { state: { movie } });
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="pl-4 md:pl-12 my-6">
-        <div className="w-48 h-6 rounded shimmer mb-3 z-20 relative"></div>
-        <div className="flex space-x-2 overflow-hidden py-4">
-           {[...Array(6)].map((_, i) => (
-             <div key={i} className={`flex-none rounded ${isLargeRow ? 'w-32 md:w-48 aspect-[2/3]' : 'w-44 md:w-60 aspect-video'} flex items-center relative z-10`}>
-               {isTop10 && <span className="absolute left-[-20px] bottom-[-30px] text-[150px] md:text-[220px] font-black leading-none select-none tracking-tighter z-0 opacity-50" style={{ WebkitTextStroke: '2px #333', color: 'transparent' }}>{i + 1}</span>}
-               <div className="w-full h-full shimmer rounded-lg z-10 opacity-70"></div>
-             </div>
-           ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!movies.length) return null;
-
-  return (
-    <motion.div 
-      initial="hidden" 
-      whileInView="show" 
-      viewport={{ once: true, margin: "-50px" }} 
-      variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } } }}
-      className="pl-4 md:pl-12 my-4 md:my-6 group relative z-20"
-    >
-      {isTop10 ? (
-        <div className="flex items-center mb-6 md:mb-10 cursor-pointer w-max pl-4 md:pl-8 group/title">
-          <h2 className="text-7xl md:text-[140px] font-bold text-transparent leading-none tracking-tighter" style={{ WebkitTextStroke: '1px #555' }}>
-            TOP 10
-          </h2>
-          <div className="ml-4 md:ml-6 flex flex-col text-sm md:text-2xl tracking-[0.4em] text-gray-300 font-light uppercase mt-2 md:mt-4">
-            <span>{title.toLowerCase().includes('shows') ? 'SHOWS' : 'MOVIES'}</span>
-            <span>TODAY</span>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between mb-4 md:mb-6 pr-4 md:pr-12 group/title">
-          <div className="flex items-center cursor-pointer">
-            {Icon && <Icon className="w-6 h-6 md:w-8 md:h-8 mr-3 text-white" />}
-            <h2 className="text-gray-100 text-xl md:text-3xl font-display font-bold tracking-tight">{title}</h2>
-            {!moviesArray && (
-              <span 
-                onClick={() => navigate(`/category/${encodeURIComponent(title)}`, { state: { fetchUrl } })}
-                className="text-blue-500 font-medium text-sm ml-4 mt-1 hover:text-blue-400 transition hidden md:block"
-              >
-                View all
-              </span>
-            )}
-          </div>
-          <div className="hidden md:flex items-center space-x-2">
-            <button onClick={() => handleScroll('left')} className="p-2 bg-transparent hover:bg-white/10 rounded-full transition"><ChevronLeft className="w-6 h-6 text-gray-400 hover:text-white" /></button>
-            <button onClick={() => handleScroll('right')} className="p-2 bg-transparent hover:bg-white/10 rounded-full transition"><ChevronRight className="w-6 h-6 text-gray-400 hover:text-white" /></button>
-          </div>
-        </div>
-      )}
-
-      <div className="relative">
-        <div 
-          ref={rowRef}
-          onKeyDown={(e) => {
-             if (e.key === 'ArrowRight') {
-                e.preventDefault();
-                handleScroll('right');
-             } else if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                handleScroll('left');
-             }
-          }}
-          className="flex overflow-x-scroll md:overflow-x-hidden md:hover:overflow-x-scroll scrollbar-hide py-6 md:py-8 pr-4 md:pr-12 space-x-4 -ml-1 snap-x snap-mandatory focus:outline-none"
-          tabIndex={-1}
-          style={{ WebkitOverflowScrolling: 'touch' }}
-        >
-          {movies.slice(0, isTop10 ? 10 : movies.length).map((movie, index) => (
-            ((isLargeRow && movie.poster_path) || (!isLargeRow && movie.backdrop_path)) && (
-              <div key={movie.id} className={`relative flex items-center group/card-wrapper ${isTop10 ? 'pl-8 md:pl-20' : ''}`}>
-                 {isTop10 && (
-                   <span className="absolute left-0 bottom-[-10px] md:bottom-[-20px] text-[120px] md:text-[200px] font-black leading-none select-none tracking-tighter transition-all duration-500 group-hover/card-wrapper:scale-110 group-hover/card-wrapper:-translate-x-2 group-hover/card-wrapper:drop-shadow-[0_0_15px_rgba(229,9,20,0.5)] z-0" style={{ WebkitTextStroke: '2px #E50914', color: 'transparent' }}>
-                     {index + 1}
-                   </span>
-                 )}
-                 <div className="z-10 w-full h-full">
-                   <RowCard 
-                     movie={movie} 
-                     isLargeRow={isLargeRow} 
-                     isTop10={isTop10}
-                     onNavigate={onNavigate} 
-                     onRemove={onRemove} 
-                   />
-                 </div>
-              </div>
-            )
-          ))}
-        </div>
-
-      </div>
-    </motion.div>
-  );
-}
+import { API_KEY, BASE_URL, IMAGE_BASE_URL, IMAGE_BASE_URL_W500, requests } from './utils/constants';
+import OfflineToast from './components/OfflineToast';
+import { getMediaType } from './utils/media';
+import HoverPortal from './components/HoverPortal';
+import MagneticButton from './components/MagneticButton';
+import Navbar from './components/Navbar';
+import Hero from './components/Hero';
+import Row from './components/Row';
+import { RowCard } from './components/RowCard';
+import { useAuth } from './context/AuthContext';
+import AuthPage from './pages/AuthPage';
+import OnboardingPage from './pages/OnboardingPage';
+import WatchlistPage from './pages/WatchlistPage';
 
 function SearchResults({ query }) {
   const [movies, setMovies] = useState([]);
@@ -918,7 +97,7 @@ function SearchResults({ query }) {
   });
 
   return (
-    <div className="px-4 md:px-8 pt-24 md:pt-28 pb-24 min-h-screen bg-[#141414] flex flex-col md:flex-row gap-8">
+    <div className="px-4 md:px-8 pt-24 md:pt-28 pb-24 min-h-screen bg-[#0a0a0c] flex flex-col md:flex-row gap-8">
       
       {/* Left Sidebar Filters */}
       <motion.div 
@@ -1043,7 +222,7 @@ function Dashboard() {
   const [genres, setGenres] = useState([]);
   const [selectedGenre, setSelectedGenre] = useState('');
   
-  const [myList, setMyList] = useLocalStorage('netphlix_myList', []);
+  const { watchlist, toggleWatchlist } = useAuth();
   const [watchHistory, setWatchHistory] = useLocalStorage('netphlix_watchHistory', []);
 
   useEffect(() => {
@@ -1074,10 +253,6 @@ function Dashboard() {
     return `${BASE_URL}/discover/${type}?api_key=${API_KEY}&with_genres=${selectedGenre || baseId}`;
   };
 
-  const removeFromList = (id) => {
-    setMyList(prev => prev.filter(m => m.id !== id));
-  };
-
   const removeFromHistory = (id) => {
     setWatchHistory(prev => prev.filter(m => m.id !== id));
   };
@@ -1088,7 +263,7 @@ function Dashboard() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 1.02, y: -15 }}
       transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-      className="min-h-screen bg-[#141414] pb-20 md:pb-0 flex flex-col"
+      className="min-h-screen bg-[#0a0a0c] pb-20 md:pb-0 flex flex-col"
     >
       <Navbar 
         onSearch={setSearchQuery} 
@@ -1104,8 +279,8 @@ function Dashboard() {
         ) : activeTab === 'My List' ? (
           <div className="pt-24 px-4 md:px-12 min-h-[60vh]">
             <h1 className="text-3xl md:text-4xl text-white font-bold mb-8">My List</h1>
-            {myList.length > 0 ? (
-               <div className="-ml-4 md:-ml-12"><Row title="" moviesArray={myList} onRemove={removeFromList} isLargeRow /></div>
+            {watchlist.length > 0 ? (
+               <div className="-ml-4 md:-ml-12"><Row title="" moviesArray={watchlist} onRemove={toggleWatchlist} isLargeRow /></div>
             ) : (
                <p className="text-gray-400 text-lg">You haven't added anything to your list yet.</p>
             )}
@@ -1118,19 +293,20 @@ function Dashboard() {
             {activeTab !== 'Home' && (
               <div className="absolute top-20 md:top-24 left-4 md:left-12 z-40 flex items-center space-x-4">
                 <h1 className="text-white text-2xl md:text-4xl font-bold">{activeTab}</h1>
-                <div className="relative group/genre">
-                  <button className="bg-black/50 border border-white/50 text-white px-3 py-1 text-xs md:text-sm font-semibold flex items-center hover:bg-black/80 transition">
-                    {selectedGenre ? genres.find(g => g.id.toString() === selectedGenre)?.name : 'Genres'}
-                    <ChevronDown className="w-4 h-4 ml-2" />
-                  </button>
-                  <div className="absolute top-full left-0 mt-1 bg-black/90 border border-gray-700 rounded grid grid-cols-2 md:grid-cols-3 gap-2 p-4 min-w-[300px] md:min-w-[400px] opacity-0 invisible group-hover/genre:opacity-100 group-hover/genre:visible transition duration-200">
-                    <div className="text-gray-300 hover:text-white cursor-pointer text-sm" onClick={() => setSelectedGenre('')}>All</div>
+                <div className="relative">
+                  <select
+                    className="appearance-none bg-black/50 border border-white/50 text-white px-4 py-1.5 pr-10 text-xs md:text-sm font-semibold rounded hover:bg-black/80 transition outline-none focus:border-white cursor-pointer shadow-lg"
+                    value={selectedGenre}
+                    onChange={(e) => setSelectedGenre(e.target.value)}
+                  >
+                    <option value="" className="bg-gray-900 text-white">All Genres</option>
                     {genres.map(g => (
-                      <div key={g.id} className="text-gray-300 hover:text-white cursor-pointer text-sm" onClick={() => setSelectedGenre(g.id.toString())}>
+                      <option key={g.id} value={g.id.toString()} className="bg-gray-900 text-white">
                         {g.name}
-                      </div>
+                      </option>
                     ))}
-                  </div>
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/80" />
                 </div>
               </div>
             )}
@@ -1139,8 +315,8 @@ function Dashboard() {
               {watchHistory && watchHistory.length > 0 && (
                 <Row title="Continue Watching" moviesArray={watchHistory} onRemove={removeFromHistory} />
               )}
-              {activeTab === 'Home' && myList.length > 0 && (
-                <Row title="My List" moviesArray={myList} onRemove={removeFromList} />
+              {activeTab === 'Home' && watchlist.length > 0 && (
+                <Row title="My List" moviesArray={watchlist} onRemove={toggleWatchlist} />
               )}
 
               {activeTab === 'TV Shows' ? (
@@ -1196,7 +372,7 @@ function PersonModal({ personId, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[70] flex items-center justify-center p-4 md:p-12 animate-in fade-in">
-       <div className="bg-[#141414] border border-gray-800 rounded-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto relative shadow-2xl">
+       <div className="bg-[#0a0a0c] border border-gray-800 rounded-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto relative shadow-2xl">
           <button onClick={onClose} className="absolute top-4 md:top-6 right-4 md:right-6 text-gray-400 hover:text-white z-10 bg-black/50 rounded-full p-2 transition hover:bg-black">
             <X className="w-6 h-6" />
           </button>
@@ -1307,11 +483,11 @@ function TitlePage() {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [collectionMovies, setCollectionMovies] = useState([]);
   
-  const [myList, setMyList] = useLocalStorage('netphlix_myList', []);
+  const { currentUser, watchlist, toggleWatchlist } = useAuth();
   const [likedMovies, setLikedMovies] = useLocalStorage('netphlix_liked', []);
   const [personalRatings, setPersonalRatings] = useLocalStorage('netphlix_ratings', {});
   const currentRating = personalRatings[id] || 0;
-  const inList = myList.some(m => m.id === parseInt(id));
+  const inList = watchlist.some(m => m.id === parseInt(id));
   const isLiked = likedMovies.some(m => m.id === parseInt(id));
 
   const toggleLike = () => {
@@ -1367,6 +543,7 @@ function TitlePage() {
         img.crossOrigin = 'Anonymous';
         img.src = `${IMAGE_BASE_URL_W500}${res.poster_path || res.backdrop_path}`;
         img.onload = () => {
+          const fac = new FastAverageColor();
           fac.getColorAsync(img).then(color => setBgColor(color.rgba)).catch(e => console.log(e));
         };
       }
@@ -1386,18 +563,11 @@ function TitlePage() {
   };
 
   const toggleMyList = () => {
-    if (inList) {
-      setMyList(prev => prev.filter(m => m.id !== parseInt(id)));
-    } else {
-      setMyList(prev => [{
-        id: parseInt(id),
-        title: details.title || details.name,
-        name: details.title || details.name,
-        media_type: type,
-        poster_path: details.poster_path,
-        backdrop_path: details.backdrop_path
-      }, ...prev]);
+    if (!currentUser) {
+      navigate('/login');
+      return;
     }
+    toggleWatchlist({ ...details, type });
   };
 
   const { scrollY } = useScroll();
@@ -1718,7 +888,7 @@ function TitlePage() {
                       key={movie.id} 
                       className="flex bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 p-3 items-center transition-colors cursor-pointer group"
                       onClick={() => {
-                        navigate(`/${movie.media_type || type}/${movie.id}`, { state: { movie } });
+                        navigate(`/title/${movie.media_type || type}/${movie.id}`, { state: { movie } });
                         window.scrollTo(0,0);
                       }}
                     >
@@ -1751,626 +921,38 @@ function TitlePage() {
 
 import Hls from 'hls.js';
 
-const CustomPlayer = ({ url, type = 'm3u8', title, onBack, externalCaptions = [], hasNextEpisode, onNextEpisode, onProgress }) => {
-  const [playing, setPlaying] = useState(false);
-  const [volume, setVolume] = useState(1);
-  const [played, setPlayed] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(true);
-  const [showCenterIcon, setShowCenterIcon] = useState(null); // 'play' or 'pause'
-  const [seekRipple, setSeekRipple] = useState(null); // 'left' or 'right'
-  const [showControls, setShowControls] = useState(true);
-  
-  const [qualities, setQualities] = useState([]);
-  const [currentQuality, setCurrentQuality] = useState(-1);
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
-
-  const [hlsSubtitles, setHlsSubtitles] = useState([]);
-  const [currentSubtitle, setCurrentSubtitle] = useState(-1);
-  const [showSubtitleMenu, setShowSubtitleMenu] = useState(false);
-  const [subtitleOffset, setSubtitleOffset] = useState(0);
-  const prevOffsetRef = useRef(0);
-
-  const [audioTracks, setAudioTracks] = useState([]);
-  const [currentAudio, setCurrentAudio] = useState(0);
-  const [showAudioMenu, setShowAudioMenu] = useState(false);
-
+const CustomPlayer = ({ src, type = 'm3u8', title, poster, onReady, onError, onProgress, captions = [] }) => {
   const playerRef = useRef(null);
-  const containerRef = useRef(null);
   const hlsRef = useRef(null);
-  const centerIconTimeout = useRef(null);
-  const controlsTimeoutRef = useRef(null);
-  const lastTapRef = useRef(0);
-  const wakeLockRef = useRef(null);
-  const lastProgressUpdateRef = useRef(-1);
 
   useEffect(() => {
-    if (playing && 'wakeLock' in navigator) {
-      navigator.wakeLock.request('screen').then(lock => {
-        wakeLockRef.current = lock;
-      }).catch(err => console.log('WakeLock error:', err));
-    } else if (!playing && wakeLockRef.current) {
-      wakeLockRef.current.release().then(() => {
-        wakeLockRef.current = null;
-      });
-    }
-  }, [playing]);
+    if (!playerRef.current || !src) return;
 
-  const resetControlsTimeout = () => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (playing) setShowControls(false);
-    }, 3000);
-  };
-
-  useEffect(() => {
-    resetControlsTimeout();
-    return () => clearTimeout(controlsTimeoutRef.current);
-  }, [playing]);
-
-  // Keyboard Shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // Ignore if typing in an input/textarea
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-      
-      switch (e.key.toLowerCase()) {
-        case ' ':
-        case 'k':
-          e.preventDefault();
-          setPlaying(p => !p);
-          setShowCenterIcon(!playing ? 'play' : 'pause');
-          if (centerIconTimeout.current) clearTimeout(centerIconTimeout.current);
-          centerIconTimeout.current = setTimeout(() => setShowCenterIcon(null), 800);
-          break;
-        case 'f':
-          e.preventDefault();
-          toggleFullscreen();
-          break;
-        case 'm':
-          e.preventDefault();
-          setVolume(v => v === 0 ? 1 : 0);
-          break;
-        case 'arrowleft':
-          e.preventDefault();
-          skip(-10);
-          setSeekRipple('left');
-          setTimeout(() => setSeekRipple(null), 500);
-          break;
-        case 'arrowright':
-          e.preventDefault();
-          skip(10);
-          setSeekRipple('right');
-          setTimeout(() => setSeekRipple(null), 500);
-          break;
-        case 'arrowup':
-          e.preventDefault();
-          setVolume(v => Math.min(1, v + 0.1));
-          break;
-        case 'arrowdown':
-          e.preventDefault();
-          setVolume(v => Math.max(0, v - 0.1));
-          break;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [playing]);
-
-  // Next Episode Auto-Play logic
-  useEffect(() => {
-    if (duration > 0 && played * duration >= duration - 1) {
-      if (hasNextEpisode && onNextEpisode) {
-        onNextEpisode();
-      }
-    }
-  }, [played, duration, hasNextEpisode, onNextEpisode]);
-
-  useEffect(() => {
-    const video = playerRef.current;
-    if (!video) return;
-
-    if (Hls.isSupported() && type !== 'mp4' && !url.includes('.mp4')) {
-      const hls = new Hls({
-        maxBufferLength: 30,
-        enableWorker: true,
-      });
-      hlsRef.current = hls;
-      
-      hls.loadSource(url);
-      hls.attachMedia(video);
-      
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-         setIsBuffering(false);
-         setQualities(hls.levels);
-         if (hls.audioTracks) setAudioTracks(hls.audioTracks);
-      });
-
-      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
-         setHlsSubtitles(hls.subtitleTracks);
-      });
-
-      // Handle dynamic audio tracks if they update
-      hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => {
-         setAudioTracks(hls.audioTracks);
-      });
-
-      hls.on(Hls.Events.ERROR, (e, data) => {
-         if (data.fatal) setIsBuffering(true);
-      });
-
-      return () => {
-        hls.destroy();
-      };
+    if (Hls.isSupported() && type !== 'mp4') {
+      hlsRef.current = new Hls();
+      hlsRef.current.loadSource(src);
+      hlsRef.current.attachMedia(playerRef.current);
+      hlsRef.current.on(Hls.Events.MANIFEST_PARSED, () => onReady?.());
+      hlsRef.current.on(Hls.Events.ERROR, (e, data) => onError?.(data));
     } else {
-      // Fallback to native video src for MP4 or native HLS (Safari)
-      video.src = url;
-      setIsBuffering(false); // Can't precisely know manifest parse, assume ready
+      playerRef.current.src = src;
     }
-  }, [url, type]);
+  }, [src, type]);
 
-  useEffect(() => {
-    if (playerRef.current) {
-      playerRef.current.volume = volume;
-    }
-  }, [volume]);
-
-  useEffect(() => {
-    if (playerRef.current) {
-      if (playing) {
-        playerRef.current.play().catch(e => console.log("Autoplay prevented:", e));
-      } else {
-        playerRef.current.pause();
-      }
-    }
-  }, [playing]);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(err => console.log(err));
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  const handleSeek = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    if (playerRef.current) {
-      playerRef.current.currentTime = pos * playerRef.current.duration;
-    }
-  };
-
-  const skip = (amount) => {
-    if (playerRef.current) {
-      playerRef.current.currentTime += amount;
-    }
-  };
-
-  const formatTime = (seconds) => {
-    if (isNaN(seconds)) return '00:00';
-    const date = new Date(seconds * 1000);
-    const hh = date.getUTCHours();
-    const mm = date.getUTCMinutes();
-    const ss = date.getUTCSeconds().toString().padStart(2, '0');
-    if (hh) return `${hh}:${mm.toString().padStart(2, '0')}:${ss}`;
-    return `${mm}:${ss}`;
-  };
-
-  const handleVideoClick = () => {
-    if (showQualityMenu || showSubtitleMenu || showAudioMenu) {
-      setShowQualityMenu(false);
-      setShowSubtitleMenu(false);
-      setShowAudioMenu(false);
-      return;
-    }
-    const newPlaying = !playing;
-    setPlaying(newPlaying);
-    
-    if ("vibrate" in navigator) navigator.vibrate(50);
-    
-    setShowCenterIcon(newPlaying ? 'play' : 'pause');
-    if (centerIconTimeout.current) clearTimeout(centerIconTimeout.current);
-    centerIconTimeout.current = setTimeout(() => setShowCenterIcon(null), 800);
-  };
-
-  const handleTouchEnd = (e) => {
-    const currentTime = new Date().getTime();
-    const tapLength = currentTime - lastTapRef.current;
-    
-    if (tapLength < 300 && tapLength > 0) {
-      if ("vibrate" in navigator) navigator.vibrate(50);
-      const touchX = e.changedTouches[0].clientX;
-      if (touchX < window.innerWidth / 2) {
-        skip(-10);
-        setSeekRipple('left');
-      } else {
-        skip(10);
-        setSeekRipple('right');
-      }
-      setTimeout(() => setSeekRipple(null), 500);
-      e.preventDefault(); // Prevent default click
-    }
-    lastTapRef.current = currentTime;
-  };
-
-  const handleQualityChange = (levelIndex) => {
-    if (hlsRef.current) {
-      hlsRef.current.currentLevel = levelIndex;
-      setCurrentQuality(levelIndex);
-      setShowQualityMenu(false);
-    }
-  };
-
-  const handleSubtitleChange = (trackId) => {
-    setCurrentSubtitle(trackId);
-    setShowSubtitleMenu(false);
-    // If it's an HLS track (number), tell HLS
-    if (typeof trackId === 'number' && hlsRef.current) {
-      hlsRef.current.subtitleTrack = trackId;
-    } else if (hlsRef.current) {
-      hlsRef.current.subtitleTrack = -1; // disable HLS subtitle if external or off
-    }
-  };
-
-  const handleSubtitleSync = (delta) => {
-     const newOffset = subtitleOffset + delta;
-     const actualDelta = newOffset - prevOffsetRef.current;
-     
-     const video = playerRef.current;
-     if (video && video.textTracks) {
-        for (let i = 0; i < video.textTracks.length; i++) {
-           const track = video.textTracks[i];
-           if (track.mode === 'showing' && track.cues) {
-              for (let j = 0; j < track.cues.length; j++) {
-                 track.cues[j].startTime += actualDelta;
-                 track.cues[j].endTime += actualDelta;
-              }
-           }
-        }
-     }
-     prevOffsetRef.current = newOffset;
-     setSubtitleOffset(newOffset);
-  };
-
-  const handleAudioChange = (trackId) => {
-    if (hlsRef.current) {
-      hlsRef.current.audioTrack = trackId;
-      setCurrentAudio(trackId);
-      setShowAudioMenu(false);
-    }
-  };
-
-  // Combine external captions and HLS subtitles
-  const allSubtitles = [
-     ...hlsSubtitles.map(t => ({ id: t.id, name: t.name || `Track ${t.id}` })),
-     ...externalCaptions.map((cap, i) => ({ id: `ext-${i}`, name: cap.language || `Ext ${i}`, url: cap.url }))
-  ];
-
-  const activeExternalTrack = externalCaptions.find((_, i) => `ext-${i}` === currentSubtitle);
-
-  // Force the native text track to display when an external track is selected
-  useEffect(() => {
-    const video = playerRef.current;
-    if (video && video.textTracks) {
-      // Small timeout to allow React to render the <track> element first
-      setTimeout(() => {
-        for (let i = 0; i < video.textTracks.length; i++) {
-          if (video.textTracks[i].kind === 'subtitles' || video.textTracks[i].kind === 'captions') {
-            video.textTracks[i].mode = activeExternalTrack ? 'showing' : 'hidden';
-          }
-        }
-      }, 50);
-    }
-  }, [activeExternalTrack, currentSubtitle]);
-
-  return (
-    <div 
-      ref={containerRef} 
-      className={`relative w-full aspect-video bg-black rounded-none md:rounded-xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.9)] border-0 md:border border-gray-800 font-sans select-none ${showControls ? '' : 'cursor-none'}`}
-      onMouseMove={resetControlsTimeout}
-      onMouseLeave={() => playing && setShowControls(false)}
-      onTouchStart={resetControlsTimeout}
-    >
-      <video
-        ref={playerRef}
-        playsInline
-        className="w-full h-full object-contain cursor-pointer"
-        onTimeUpdate={(e) => {
-          const p = e.target.currentTime / e.target.duration || 0;
-          setPlayed(p);
-          const currentSec = Math.floor(e.target.currentTime);
-          if (onProgress && currentSec % 5 === 0 && currentSec !== lastProgressUpdateRef.current) {
-              lastProgressUpdateRef.current = currentSec;
-              onProgress(p * 100);
-          }
-        }}
-        onDurationChange={(e) => setDuration(e.target.duration)}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onWaiting={() => setIsBuffering(true)}
-        onPlaying={() => setIsBuffering(false)}
-        onClick={handleVideoClick}
-        onTouchEnd={handleTouchEnd}
-        crossOrigin="anonymous"
-      >
-        {activeExternalTrack && (
-           <track 
-              key={activeExternalTrack.url}
-              kind="subtitles" 
-              src={activeExternalTrack.url} 
-              srcLang="en" 
-              label={activeExternalTrack.language} 
-              default 
-              onLoad={(e) => {
-                 const track = e.target.track;
-                 if (track && track.cues && subtitleOffset !== 0) {
-                    for (let i = 0; i < track.cues.length; i++) {
-                       track.cues[i].startTime += subtitleOffset;
-                       track.cues[i].endTime += subtitleOffset;
-                    }
-                 }
-                 prevOffsetRef.current = subtitleOffset;
-              }}
-           />
-        )}
-      </video>
-      
-      {/* Buffering Spinner */}
-      {isBuffering && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      )}
-
-      {/* Center Action Icon Animation */}
-      {showCenterIcon && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-          <div className="w-20 h-20 md:w-28 md:h-28 bg-black/60 rounded-full flex items-center justify-center animate-ping-short">
-            {showCenterIcon === 'play' ? (
-              <Play className="w-10 h-10 md:w-12 md:h-12 text-white ml-2" />
-            ) : showCenterIcon === 'pause' ? (
-              <Pause className="w-10 h-10 md:w-12 md:h-12 text-white" />
-            ) : showCenterIcon === 'rewind' ? (
-              <RotateCcw className="w-10 h-10 md:w-12 md:h-12 text-white" />
-            ) : (
-              <RotateCw className="w-10 h-10 md:w-12 md:h-12 text-white" />
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Visual Seek Ripples (Mobile) */}
-      {seekRipple && (
-        <div className={`absolute top-0 bottom-0 w-1/2 flex items-center justify-center pointer-events-none overflow-hidden z-20 ${seekRipple === 'left' ? 'left-0' : 'right-0'}`}>
-          <div 
-            className="w-full h-full bg-white/10 flex flex-col items-center justify-center animate-ping-short"
-            style={{ 
-               borderTopRightRadius: seekRipple === 'left' ? '100%' : '0',
-               borderBottomRightRadius: seekRipple === 'left' ? '100%' : '0',
-               borderTopLeftRadius: seekRipple === 'right' ? '100%' : '0',
-               borderBottomLeftRadius: seekRipple === 'right' ? '100%' : '0'
-            }}
-          >
-             {seekRipple === 'left' ? <RotateCcw className="w-8 h-8 text-white mb-2" /> : <RotateCw className="w-8 h-8 text-white mb-2" />}
-             <span className="text-white font-bold">{seekRipple === 'left' ? '-10s' : '+10s'}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Auto-Play Next Episode Overlay */}
-      {hasNextEpisode && duration > 0 && played * duration >= duration - 15 && (
-        <div className="absolute bottom-24 right-8 z-40 pointer-events-auto transition-opacity duration-500 opacity-100">
-          <button onClick={onNextEpisode} className="flex items-center space-x-4 bg-black/80 hover:bg-black border border-gray-600 rounded-md px-6 py-4 shadow-2xl transition-transform hover:scale-105 group">
-             <div className="flex flex-col text-left">
-                <span className="text-white font-bold text-lg">Up Next</span>
-                <span className="text-gray-300 text-sm">Starting in {Math.floor(duration - played*duration)}s</span>
-             </div>
-             <Play className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
-          </button>
-        </div>
-      )}
-
-      {/* Top Gradient Overlay */}
-      <div className={`absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-500 pointer-events-none ${showControls ? 'opacity-100' : 'opacity-0'}`}></div>
-
-      {/* Top Left: Back Button & Title */}
-      <div className={`absolute top-4 left-4 md:top-6 md:left-6 z-20 transition-opacity duration-500 pointer-events-auto flex items-center space-x-2 md:space-x-4 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-        {onBack && (
-          <button onClick={onBack} className="text-white hover:text-white/80 transition-colors bg-black/40 hover:bg-black/60 rounded-full p-1.5 md:p-2 backdrop-blur-md">
-            <ArrowLeft className="w-5 h-5 md:w-8 md:h-8" />
-          </button>
-        )}
-        <h1 className="text-lg md:text-3xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] tracking-wide line-clamp-1">{title}</h1>
-      </div>
-
-      {/* Controls Overlay */}
-      <div className={`absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/90 via-black/60 to-transparent px-2 md:px-8 py-3 md:py-8 transition-opacity duration-500 flex flex-col justify-end z-20 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-         
-         {/* Progress Bar */}
-         <div className="w-full h-8 cursor-pointer relative flex items-center group/scrub mb-2" onClick={handleSeek}>
-            <div className="w-full h-1 bg-white/20 relative group-hover/scrub:h-1.5 transition-all duration-300">
-               {/* Buffered Bar */}
-               <div className="absolute top-0 left-0 h-full bg-white/30 pointer-events-none" style={{ width: `${(played + 0.05) * 100}%`, maxWidth: '100%' }}></div>
-               {/* Netflix-style Red Progress Bar */}
-               <div className="absolute top-0 left-0 h-full bg-[#E50914] pointer-events-none shadow-[0_0_10px_#E50914]" style={{ width: `${played * 100}%` }}></div>
-            </div>
-            {/* Thumb */}
-            <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full scale-0 group-hover/scrub:scale-100 transition-transform shadow-md pointer-events-none z-10" style={{ left: `calc(${played * 100}% - 8px)` }}></div>
-         </div>
-
-         {/* Controls */}
-         <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 md:space-x-6">
-               <button onClick={() => setPlaying(!playing)} className="text-white hover:text-gray-300 transition-colors drop-shadow-md">
-                  {playing ? <Pause className="w-8 h-8 md:w-10 md:h-10" /> : <Play className="w-8 h-8 md:w-10 md:h-10" />}
-               </button>
-
-               <button onClick={() => skip(-10)} className="text-white hover:text-gray-300 transition-colors hidden sm:block drop-shadow-md" title="Rewind 10s">
-                  <RotateCcw className="w-7 h-7 md:w-8 md:h-8" />
-               </button>
-
-               <button onClick={() => skip(10)} className="text-white hover:text-gray-300 transition-colors hidden sm:block drop-shadow-md" title="Forward 10s">
-                  <RotateCw className="w-7 h-7 md:w-8 md:h-8" />
-               </button>
-               
-               {/* Volume */}
-               <div className="hidden sm:flex items-center space-x-2 group/vol relative">
-                  <button onClick={() => setVolume(volume === 0 ? 1 : 0)} className="text-white hover:text-gray-300 transition-colors drop-shadow-md">
-                     {volume === 0 ? <VolumeX className="w-7 h-7 md:w-8 md:h-8" /> : <Volume2 className="w-7 h-7 md:w-8 md:h-8" />}
-                  </button>
-                  <div className="w-0 group-hover/vol:w-24 overflow-hidden opacity-0 group-hover/vol:opacity-100 transition-all duration-300 flex items-center">
-                    <input 
-                       type="range" min={0} max={1} step={0.05} value={volume} 
-                       onChange={(e) => setVolume(parseFloat(e.target.value))}
-                       className="w-full accent-[#E50914] cursor-pointer h-1 bg-white/30 rounded-full appearance-none"
-                    />
-                  </div>
-               </div>
-
-               {/* Time Display */}
-               <div className="text-white text-xs md:text-sm font-medium tracking-wide drop-shadow-md tabular-nums pl-2">
-                  {formatTime(played * duration)} <span className="text-white/60 mx-1">/</span> {formatTime(duration)}
-               </div>
-            </div>
-
-            <div className="flex items-center space-x-4 md:space-x-6 relative">
-               
-               {/* Subtitles Menu */}
-               {allSubtitles.length > 0 && (
-                 <div className="relative group/subs">
-                   <button onClick={() => {setShowSubtitleMenu(!showSubtitleMenu); setShowQualityMenu(false); setShowAudioMenu(false);}} className={`text-white hover:text-gray-300 transition-colors drop-shadow-md ${showSubtitleMenu ? 'text-[#E50914]' : ''}`} title="Subtitles">
-                      <Subtitles className="w-7 h-7 md:w-8 md:h-8" />
-                   </button>
-                   {showSubtitleMenu && (
-                     <div className="absolute bottom-full right-0 mb-4 w-48 bg-black/95 border border-gray-800 rounded-lg overflow-hidden backdrop-blur-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] z-50 transition-all origin-bottom">
-                       <div className="py-2 max-h-60 overflow-y-auto scrollbar-hide">
-                         <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider sticky top-0 bg-black/95">Subtitles</div>
-                         <button 
-                           onClick={() => handleSubtitleChange(-1)} 
-                           className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${currentSubtitle === -1 ? 'text-white bg-white/10 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
-                         >
-                           Off
-                           {currentSubtitle === -1 && <Check className="w-4 h-4" />}
-                         </button>
-                         {allSubtitles.map(track => (
-                           <button 
-                             key={track.id} 
-                             onClick={() => handleSubtitleChange(track.id)} 
-                             className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${currentSubtitle === track.id ? 'text-white bg-white/10 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
-                           >
-                             {track.name}
-                             {currentSubtitle === track.id && <Check className="w-4 h-4" />}
-                           </button>
-                         ))}
-                       </div>
-                       
-                       {/* Subtitle Sync Tool */}
-                       {currentSubtitle !== -1 && (
-                         <div className="border-t border-gray-800 p-3 bg-black/50">
-                            <div className="text-xs text-gray-400 mb-2 flex justify-between">
-                               <span>Sync Delay</span>
-                               <span className="text-white font-mono">{subtitleOffset > 0 ? '+' : ''}{(subtitleOffset).toFixed(1)}s</span>
-                            </div>
-                            <div className="flex items-center justify-between space-x-2">
-                               <button onClick={() => handleSubtitleSync(-0.5)} className="p-1.5 bg-white/10 hover:bg-white/20 rounded text-white text-xs font-mono">-0.5s</button>
-                               <button onClick={() => handleSubtitleSync(0.5)} className="p-1.5 bg-white/10 hover:bg-white/20 rounded text-white text-xs font-mono">+0.5s</button>
-                            </div>
-                         </div>
-                       )}
-                     </div>
-                   )}
-                 </div>
-               )}
-
-               {/* Audio Menu */}
-               {audioTracks.length > 1 && (
-                  <div className="relative group/audio">
-                    <button onClick={() => {setShowAudioMenu(!showAudioMenu); setShowQualityMenu(false); setShowSubtitleMenu(false);}} className={`text-white hover:text-gray-300 transition-colors drop-shadow-md ${showAudioMenu ? 'text-[#E50914]' : ''}`} title="Audio Tracks">
-                      <Headphones className="w-7 h-7 md:w-8 md:h-8" />
-                    </button>
-                    {showAudioMenu && (
-                      <div className="absolute bottom-full right-0 mb-4 w-48 bg-black/95 border border-gray-800 rounded-lg overflow-hidden backdrop-blur-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] z-50">
-                        <div className="py-2 max-h-60 overflow-y-auto scrollbar-hide">
-                          <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider sticky top-0 bg-black/95">Audio</div>
-                          {audioTracks.map((track, i) => (
-                            <button 
-                              key={i} 
-                              onClick={() => handleAudioChange(i)} 
-                              className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${currentAudio === i ? 'text-white bg-white/10 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
-                            >
-                              {track.name || `Audio ${i + 1}`}
-                              {currentAudio === i && <Check className="w-4 h-4" />}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-               )}
-
-               {/* Quality Settings */}
-               {qualities.length > 0 && (
-                 <div className="relative group/quality">
-                   <button onClick={() => {setShowQualityMenu(!showQualityMenu); setShowSubtitleMenu(false); setShowAudioMenu(false);}} className={`text-white hover:text-gray-300 transition-colors drop-shadow-md ${showQualityMenu ? 'text-[#E50914]' : ''}`} title="Quality">
-                     <Settings className={`w-7 h-7 md:w-8 md:h-8 transition-transform ${showQualityMenu ? 'rotate-90' : ''}`} />
-                   </button>
-                   {showQualityMenu && (
-                     <div className="absolute bottom-full right-0 mb-4 w-40 bg-black/95 border border-gray-800 rounded-lg overflow-hidden backdrop-blur-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] z-50">
-                       <div className="py-2 max-h-60 overflow-y-auto scrollbar-hide">
-                         <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider sticky top-0 bg-black/95">Quality</div>
-                         <button 
-                           onClick={() => handleQualityChange(-1)} 
-                           className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${currentQuality === -1 ? 'text-white bg-white/10 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
-                         >
-                           Auto
-                           {currentQuality === -1 && <Check className="w-4 h-4" />}
-                         </button>
-                         {[...qualities].reverse().map((q, idx) => {
-                           const originalIndex = qualities.length - 1 - idx;
-                           return (
-                             <button 
-                               key={originalIndex} 
-                               onClick={() => handleQualityChange(originalIndex)} 
-                               className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${currentQuality === originalIndex ? 'text-white bg-white/10 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
-                             >
-                               {q.height}p
-                               {currentQuality === originalIndex && <Check className="w-4 h-4" />}
-                             </button>
-                           );
-                         })}
-                       </div>
-                     </div>
-                   )}
-                 </div>
-               )}
-
-               <button onClick={toggleFullscreen} className="text-white hover:text-gray-300 transition-colors drop-shadow-md" title="Fullscreen">
-                  <Maximize className="w-7 h-7 md:w-8 md:h-8" />
-               </button>
-            </div>
-         </div>
-      </div>
-    </div>
-  );
+  return <video ref={playerRef} controls poster={poster} className="w-full h-full" />;
 };
 
 function WatchPage() {
   const { type, id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { currentUser, userRole } = useAuth();
   
   const queryParams = new URLSearchParams(location.search);
   const season = queryParams.get('s') || 1;
-  const episode = queryParams.get('e') || 1;
-  const SERVERS = ['VidAPI', 'RGShows', 'SmashyStream', 'VidLink', 'VidSrcRU', 'VSrcSU', 'SuperEmbed', '2Embed', 'Peachify'];
+  const episode = queryParams.get('e') || 1;  const SERVERS = ['Fast', 'Peachify (may contain hindi)', 'VidAPI', 'RGShows', 'SmashyStream', 'VidLink', 'VidSrcRU', 'VSrcSU', 'SuperEmbed', '2Embed'];
   const [server, setServer] = useLocalStorage('netphlix_server', SERVERS[0]);
-  const [useAdfree, setUseAdfree] = useLocalStorage('netphlix_useAdfree', true);
-  const [useSandbox, setUseSandbox] = useLocalStorage('netphlix_useSandbox', true);
+  const [useSandbox, setUseSandbox] = useLocalStorage('netphlix_useSandbox', false);
   const [adfreeServer, setAdfreeServer] = useLocalStorage('netphlix_adfreeServer', 0); // Stores the index of the selected stream
   const [availableStreams, setAvailableStreams] = useState([]);
 
@@ -2385,6 +967,57 @@ function WatchPage() {
   const [nativeCaptions, setNativeCaptions] = useState([]);
   const [streamLoading, setStreamLoading] = useState(true);
 
+  // --- PWA Popup Player ---
+  const isPWA = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  );
+  const [pwaPopupOpen, setPwaPopupOpen] = useState(false);
+  const popupWindowRef = useRef(null);
+
+  const openPwaPlayer = () => {
+    const src = getIframeSrc();
+    const width = Math.min(window.screen.availWidth, 1280);
+    const height = Math.min(window.screen.availHeight, 720);
+    const left = Math.round((window.screen.availWidth - width) / 2);
+    const top = Math.round((window.screen.availHeight - height) / 2);
+
+    // Close existing popup if still open
+    if (popupWindowRef.current && !popupWindowRef.current.closed) {
+      popupWindowRef.current.close();
+    }
+
+    const popup = window.open(
+      src,
+      'netphlix_player',
+      `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes`
+    );
+
+    if (popup) {
+      popupWindowRef.current = popup;
+      setPwaPopupOpen(true);
+
+      // Monitor popup close
+      const checkClosed = setInterval(() => {
+        if (!popup || popup.closed) {
+          clearInterval(checkClosed);
+          setPwaPopupOpen(false);
+          popupWindowRef.current = null;
+        }
+      }, 500);
+    }
+  };
+
+  // Cleanup popup on unmount or navigation
+  useEffect(() => {
+    return () => {
+      if (popupWindowRef.current && !popupWindowRef.current.closed) {
+        popupWindowRef.current.close();
+        popupWindowRef.current = null;
+      }
+    };
+  }, [id, season, episode]);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id, season, episode]);
@@ -2392,6 +1025,7 @@ function WatchPage() {
   // Fetch Stream from Backend
   useEffect(() => {
     const fetchStream = async () => {
+      if (userRole !== 'premium') return;
       try {
         setStreamLoading(true);
         const url = `https://movie-scraper-gilt.vercel.app/api?tmdb=${id}${type === 'tv' ? `&s=${season}&e=${episode}` : ''}`;
@@ -2469,10 +1103,10 @@ function WatchPage() {
       }
     };
     
-    if (useAdfree) {
+    if (server === 'Fast') {
        fetchStream();
     }
-  }, [type, id, season, episode, useAdfree]);
+  }, [type, id, season, episode, server]);
 
   // Handle stream source switching instantly
   useEffect(() => {
@@ -2586,7 +1220,7 @@ function WatchPage() {
         case 'VSrcSU': return `https://vsrc.su/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
         case 'SuperEmbed': return `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`;
         case '2Embed': return `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}`;
-        case 'Peachify': return `https://peachify.top/embed/tv/${id}/${season}/${episode}`;
+        case 'Peachify (may contain hindi)': return `https://peachify.top/embed/tv/${id}/${season}/${episode}`;
         default: return `https://vaplayer.ru/embed/tv/${id}/${season}/${episode}?autoplay=1`;
       }
     } else {
@@ -2599,14 +1233,14 @@ function WatchPage() {
         case 'VSrcSU': return `https://vsrc.su/embed/movie?tmdb=${id}`;
         case 'SuperEmbed': return `https://multiembed.mov/?video_id=${id}&tmdb=1`;
         case '2Embed': return `https://www.2embed.cc/embed/${id}`;
-        case 'Peachify': return `https://peachify.top/embed/movie/${id}`;
+        case 'Peachify (may contain hindi)': return `https://peachify.top/embed/movie/${id}`;
         default: return `https://vaplayer.ru/embed/movie/${id}?autoplay=1`;
       }
     }
   };
 
   if (!details) {
-    return <div className="w-screen h-screen bg-[#141414] flex items-center justify-center"><div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div></div>;
+    return <div className="w-screen h-screen bg-[#0a0a0c] flex items-center justify-center"><div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
   const currentEpData = type === 'tv' ? episodesList.find(e => e.episode_number === parseInt(episode)) : null;
@@ -2617,7 +1251,7 @@ function WatchPage() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 1.02, y: -15 }}
       transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-      className="min-h-screen bg-[#141414] text-white pb-20 md:pb-0"
+      className="min-h-screen bg-[#0a0a0c] text-white pb-20 md:pb-0"
     >
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       
@@ -2625,37 +1259,60 @@ function WatchPage() {
       <div className="pt-16 md:pt-24 w-full bg-black relative">
         <div className="max-w-[1800px] mx-auto relative group">
           <div id="video-player-container" className="relative w-full aspect-video bg-black md:rounded-xl overflow-hidden md:shadow-[0_0_60px_rgba(0,0,0,0.8)] md:border border-gray-800 transition-all duration-500">
-          
-            {useAdfree && streamLoading ? (
-               <div className="w-full h-full flex flex-col items-center justify-center bg-[#0a0a0a]">
-                  <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[var(--accent-color)] shadow-[0_0_20px_rgba(229,9,20,0.5)]"></div>
-                  <p className="mt-4 text-gray-400 font-bold tracking-widest uppercase text-sm animate-pulse">Loading Stream...</p>
-               </div>
-            ) : useAdfree && nativeStreamUrl ? (
-               <CustomPlayer 
-                  url={nativeStreamUrl} 
-                  type={nativeStreamType}
-                  title={`${details?.title || details?.name || 'Video'} ${type === 'tv' ? `(S${season} E${episode})` : ''}`}
-                  onBack={() => navigate(-1)}
-                  externalCaptions={nativeCaptions}
-                  onProgress={(progress) => {
-                     setWatchHistory(prev => prev.map(m => m.id === parseInt(id) ? { ...m, progress } : m));
-                  }}
-               />
-            ) : useAdfree ? (
-               <div className="w-full h-full flex flex-col items-center justify-center bg-[#0a0a0a]">
-                  <p className="text-gray-400 font-medium">Stream not available right now. Try switching servers.</p>
-               </div>
-            ) : (
-              <iframe
-                key={`${server}-${season}-${episode}-${useSandbox}`}
-                src={getIframeSrc()}
-                className="w-full h-full border-none"
-                frameBorder="0"
-                allowFullScreen
-                {...(useSandbox ? { sandbox: "allow-scripts allow-same-origin allow-forms allow-presentation" } : {})}
-              ></iframe>
-            )}
+             {userRole !== 'premium' ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0c] z-30 p-4 text-center">
+                   <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-6 border border-white/20">
+                     <Lock className="w-10 h-10 text-[var(--accent-color)]" />
+                   </div>
+                   <h2 className="text-3xl font-black mb-2">Premium Content</h2>
+                   <p className="text-gray-400 max-w-md mb-8">
+                     This content is available exclusively for Netphlixx Premium members. Upgrade your account to start watching instantly.
+                   </p>
+                   <a 
+                     href="https://t.me/Marvelousshivam" 
+                     target="_blank" 
+                     rel="noopener noreferrer" 
+                     className="px-8 py-4 bg-[var(--accent-color)] text-white font-bold rounded-xl shadow-[0_0_30px_rgba(229,9,20,0.5)] hover:scale-105 transition-transform"
+                   >
+                     Upgrade to Premium
+                   </a>
+                </div>
+             ) : (
+               <>
+                 {streamLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black z-20">
+                       <div className="flex flex-col items-center">
+                          <div className="w-12 h-12 border-4 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin"></div>
+                          <p className="mt-4 text-gray-400 font-bold tracking-widest text-sm uppercase">Loading Stream</p>
+                       </div>
+                    </div>
+                 )}
+                 
+                 {nativeStreamUrl ? (
+                    <CustomPlayer 
+                       src={nativeStreamUrl} 
+                       type={nativeStreamType} 
+                       captions={nativeCaptions} 
+                       poster={details.backdrop_path ? `${IMAGE_BASE_URL}${details.backdrop_path}` : null}
+                       title={details.title || details.name}
+                       onReady={() => setStreamLoading(false)}
+                       onError={(e) => {
+                          console.error("Native player error:", e);
+                          // Fallback logic could be added here
+                       }}
+                    />
+                 ) : (
+                    <iframe
+                      id="netphlix-iframe-player"
+                      src={getIframeSrc()}
+                      className="w-full h-full absolute inset-0 bg-black"
+                      allowFullScreen
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      onLoad={() => setStreamLoading(false)}
+                    ></iframe>
+                 )}
+               </>
+             )}
           </div>
         </div>
       </div>
@@ -2697,19 +1354,8 @@ function WatchPage() {
             )}
             
             <div className="flex items-center space-x-2 w-full md:w-auto">
-              <button 
-                onClick={() => setUseAdfree(!useAdfree)}
-                className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-4 py-2 md:py-2.5 rounded-lg border transition-all shadow-lg text-sm font-bold ${
-                  useAdfree 
-                  ? 'bg-[var(--accent-color)] border-[var(--accent-color)] text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]' 
-                  : 'bg-black/70 border-gray-600 text-gray-300 hover:text-white hover:border-gray-400'
-                }`}
-              >
-                <Star className={`w-4 h-4 ${useAdfree ? 'fill-white' : ''}`} />
-                <span>{useAdfree ? 'Adfree ON' : 'Adfree Player'}</span>
-              </button>
 
-              {useAdfree && availableStreams.length > 0 && (
+              {server === 'Fast' && availableStreams.length > 0 && (
                 <div className="flex items-center bg-[#1a1a1a] px-3 py-2 md:py-2.5 rounded-lg border border-gray-700 hover:border-gray-500 transition shadow-lg w-full md:w-auto">
                   <span className="text-[var(--accent-color)] text-xs font-semibold mr-2 hidden sm:block">SOURCE:</span>
                   <select 
@@ -2726,34 +1372,18 @@ function WatchPage() {
                 </div>
               )}
 
-              {!useAdfree && (
-                <>
-                  <div className="flex items-center bg-[#1a1a1a] px-3 py-2 md:py-2.5 rounded-lg border border-gray-700 hover:border-gray-500 transition shadow-lg w-full md:w-auto">
-                    <span className="text-gray-400 text-xs font-semibold mr-2 hidden sm:block">SERVER:</span>
-                    <select 
-                      value={server} 
-                      onChange={(e) => setServer(e.target.value)}
-                      className="bg-transparent text-white font-bold outline-none text-sm cursor-pointer w-full"
-                    >
-                      {SERVERS.map(s => (
-                        <option key={s} value={s} className="bg-gray-900 text-white">{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <button 
-                    onClick={() => setUseSandbox(!useSandbox)}
-                    className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 md:py-2.5 rounded-lg border transition-all shadow-lg text-sm font-bold ${
-                      useSandbox 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' 
-                      : 'bg-black/70 border-gray-600 text-gray-300 hover:text-white hover:border-gray-400'
-                    }`}
-                    title="Toggles Sandbox mode. When ON, popups are blocked but some streams might fail."
-                  >
-                    <span>{useSandbox ? 'Sandbox ON' : 'Sandbox OFF'}</span>
-                  </button>
-                </>
-              )}
+              <div className="flex items-center bg-[#1a1a1a] px-3 py-2 md:py-2.5 rounded-lg border border-gray-700 hover:border-gray-500 transition shadow-lg w-full md:w-auto">
+                <span className="text-gray-400 text-xs font-semibold mr-2 hidden sm:block">SERVER:</span>
+                <select 
+                  value={server} 
+                  onChange={(e) => setServer(e.target.value)}
+                  className="bg-transparent text-white font-bold outline-none text-sm cursor-pointer w-full"
+                >
+                  {SERVERS.map(s => (
+                    <option key={s} value={s} className="bg-gray-900 text-white">{s}</option>
+                  ))}
+                </select>
+              </div>
             </div>
          </div>
       </div>
@@ -2763,7 +1393,7 @@ function WatchPage() {
          {/* Backdrop Image */}
          {details.backdrop_path && (
             <div className="absolute inset-0 opacity-10 pointer-events-none">
-               <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/80 to-transparent z-10" />
+               <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c]/80 to-transparent z-10" />
                <img src={`${IMAGE_BASE_URL}${details.backdrop_path}`} className="w-full h-full object-cover" />
             </div>
          )}
@@ -2848,13 +1478,10 @@ function WatchPage() {
 }
 
 function ProfilePage() {
-  const [myList, setMyList] = useLocalStorage('netphlix_myList', []);
+  const { currentUser, userRole, watchlist, toggleWatchlist } = useAuth();
   const [likedMovies, setLikedMovies] = useLocalStorage('netphlix_liked', []);
   const navigate = useNavigate();
 
-  const removeFromList = (id) => {
-    setMyList(prev => prev.filter(m => m.id !== id));
-  };
   const removeFromLiked = (id) => {
     setLikedMovies(prev => prev.filter(m => m.id !== id));
   };
@@ -2869,51 +1496,70 @@ function ProfilePage() {
     >
       <Navbar activeTab="" setActiveTab={() => navigate('/')} />
       <div className="container mx-auto">
-         <div className="flex items-center mb-12">
-            <div className="w-20 h-20 bg-[#2a2a2a] rounded-full border border-gray-600 flex items-center justify-center mr-6 shadow-xl">
-               <User className="w-10 h-10 text-gray-300" />
+         <div className="flex flex-col md:flex-row items-center md:items-start justify-between mb-12">
+            <div className="flex items-center">
+              <div className="w-20 h-20 bg-[#2a2a2a] rounded-full border border-gray-600 flex items-center justify-center mr-6 shadow-xl">
+                 <User className="w-10 h-10 text-gray-300" />
+              </div>
+              <div>
+                 <h1 className="text-3xl md:text-5xl font-display font-bold tracking-tight">
+                   {currentUser?.displayName || 'My Profile'}
+                 </h1>
+                 <p className="text-gray-400 mt-2">{currentUser?.email}</p>
+                 <div className="mt-2 flex items-center space-x-2">
+                   <span className="px-3 py-1 bg-white/10 text-xs font-bold uppercase tracking-wider rounded-md border border-white/20">
+                     Status: <span className={userRole === 'premium' ? 'text-green-500' : 'text-gray-400'}>{userRole}</span>
+                   </span>
+                 </div>
+              </div>
             </div>
-            <div>
-               <h1 className="text-3xl md:text-5xl font-display font-bold tracking-tight">My Profile</h1>
-               <p className="text-gray-400 mt-2">Manage your watchlist and liked movies</p>
-            </div>
+            
+            {userRole !== 'premium' && (
+              <div className="mt-6 md:mt-0">
+                <a href="https://t.me/Marvelousshivam" target="_blank" rel="noopener noreferrer" className="inline-block px-6 py-3 bg-[var(--accent-color)] text-white font-bold rounded-xl shadow-[0_0_20px_rgba(229,9,20,0.4)] hover:bg-red-700 transition-colors">
+                  Upgrade to Premium
+                </a>
+              </div>
+            )}
          </div>
          
+         {/* Watchlist Section */}
          <div className="mb-16">
             <h2 className="text-2xl md:text-3xl font-display font-bold mb-6 flex items-center">
-               <Bookmark className="w-6 h-6 mr-3 text-netflix-red" /> My Watchlist <span className="ml-3 text-gray-500 text-lg">({myList.length})</span>
+               <Bookmark className="w-6 h-6 mr-3 text-netflix-red" /> My Watchlist <span className="ml-3 text-gray-500 text-lg">({watchlist.length})</span>
             </h2>
-            {myList.length > 0 ? (
+            {watchlist.length > 0 ? (
                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                 {myList.map(movie => (
+                 {watchlist.map(movie => (
                     <div key={movie.id} className="w-full flex justify-center">
                       <RowCard movie={movie} isLargeRow={true} isTop10={false} onNavigate={(m, action) => {
-                        const mediaType = m.name ? 'tv' : 'movie';
+                        const mediaType = m.type || m.media_type || (m.name ? 'tv' : 'movie');
                         if (action === 'play') navigate(`/watch/${mediaType}/${m.id}`);
                         else navigate(`/title/${mediaType}/${m.id}`, { state: { movie: m } });
-                      }} onRemove={() => removeFromList(movie.id)} />
+                      }} onRemove={() => toggleWatchlist(movie)} />
                     </div>
                  ))}
                </div>
             ) : (
-               <div className="bg-[#111] border border-white/5 p-8 rounded-xl text-center">
-                  <Bookmark className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">Your watchlist is empty.</p>
-                  <button onClick={() => navigate('/')} className="mt-4 bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full transition text-sm font-semibold">Explore Movies</button>
+               <div className="text-center py-16 bg-white/5 rounded-xl border border-white/10">
+                 <Bookmark className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                 <p className="text-xl text-gray-400">Your watchlist is empty</p>
+                 <button onClick={() => navigate('/')} className="mt-4 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">Explore Movies & TV</button>
                </div>
             )}
          </div>
 
-         <div className="mb-16">
+         {/* Liked Section */}
+         <div>
             <h2 className="text-2xl md:text-3xl font-display font-bold mb-6 flex items-center">
-               <ThumbsUp className="w-6 h-6 mr-3 text-netflix-red" /> Liked Movies <span className="ml-3 text-gray-500 text-lg">({likedMovies.length})</span>
+               <Heart className="w-6 h-6 mr-3 text-netflix-red fill-netflix-red" /> Liked <span className="ml-3 text-gray-500 text-lg">({likedMovies.length})</span>
             </h2>
             {likedMovies.length > 0 ? (
                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
                  {likedMovies.map(movie => (
                     <div key={movie.id} className="w-full flex justify-center">
                       <RowCard movie={movie} isLargeRow={true} isTop10={false} onNavigate={(m, action) => {
-                        const mediaType = m.name ? 'tv' : 'movie';
+                        const mediaType = m.type || m.media_type || (m.name ? 'tv' : 'movie');
                         if (action === 'play') navigate(`/watch/${mediaType}/${m.id}`);
                         else navigate(`/title/${mediaType}/${m.id}`, { state: { movie: m } });
                       }} onRemove={() => removeFromLiked(movie.id)} />
@@ -2921,14 +1567,19 @@ function ProfilePage() {
                  ))}
                </div>
             ) : (
-               <div className="bg-[#111] border border-white/5 p-8 rounded-xl text-center">
-                  <ThumbsUp className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">You haven't liked anything yet.</p>
+               <div className="text-center py-16 bg-white/5 rounded-xl border border-white/10">
+                 <Heart className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                 <p className="text-xl text-gray-400">You haven't liked anything yet</p>
                </div>
             )}
          </div>
+
+         <div className="mt-12 flex justify-center">
+           <button onClick={() => { auth.signOut(); navigate('/login'); }} className="px-6 py-2 border border-red-500 text-red-500 font-bold rounded-xl hover:bg-red-500 hover:text-white transition-colors">
+             Log Out
+           </button>
+         </div>
       </div>
-      <Footer />
     </motion.div>
   );
 }
@@ -3007,7 +1658,7 @@ function CategoryPage() {
         {movies.map(movie => (
            <div key={movie.id} className="w-full flex justify-center">
              <RowCard movie={movie} isLargeRow={true} isTop10={false} onNavigate={(m, action) => {
-               const mediaType = m.name ? 'tv' : 'movie';
+               const mediaType = m.type || m.media_type || (m.name ? 'tv' : 'movie');
                if (action === 'play') navigate(`/watch/${mediaType}/${m.id}`);
                else navigate(`/title/${mediaType}/${m.id}`, { state: { movie: m } });
              }} />
@@ -3192,42 +1843,6 @@ function CompanyPage() {
   );
 }
 
-function HlsPlayer({ src, className, autoPlay, controls }) {
-  const videoRef = useRef(null);
-  
-  useEffect(() => {
-    if (!videoRef.current || !src) return;
-    
-    // Check if Hls is defined (it's imported globally in this file)
-    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-      const hls = new Hls({
-        debug: false,
-        enableWorker: true,
-        lowLatencyMode: true,
-      });
-      hls.loadSource(src);
-      hls.attachMedia(videoRef.current);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (autoPlay) {
-          videoRef.current.play().catch(e => console.log('Auto-play prevented:', e));
-        }
-      });
-      return () => {
-        hls.destroy();
-      };
-    } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-      videoRef.current.src = src;
-      videoRef.current.addEventListener('loadedmetadata', () => {
-        if (autoPlay) {
-          videoRef.current.play().catch(e => console.log('Auto-play prevented:', e));
-        }
-      });
-    }
-  }, [src, autoPlay]);
-
-  return <video ref={videoRef} className={className} controls={controls} playsInline autoPlay={autoPlay} />;
-}
-
 function LiveTvPage() {
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3241,13 +1856,48 @@ function LiveTvPage() {
     window.scrollTo(0, 0);
     async function fetchChannels() {
       try {
-        const res = await fetch('http://localhost:4000/api/livetv');
-        if (!res.ok) throw new Error('Failed to fetch channels');
-        const data = await res.json();
-        setChannels(data);
-        if (data.length > 0) setActiveChannel(data[0]);
+        let res = await fetch('/combined_playlist.m3u');
+        if (!res.ok) {
+           res = await fetch('https://raw.githubusercontent.com/FunctionError/PiratesTv/main/combined_playlist.m3u');
+        }
+        if (!res.ok) throw new Error('Failed to fetch playlist');
+        const text = await res.text();
+        
+        const channelsData = [];
+        const lines = text.split('\n');
+        let currentChannel = {};
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line.startsWith('#EXTINF:')) {
+            currentChannel = {};
+            const logoMatch = line.match(/tvg-logo="([^"]*)"/);
+            const groupMatch = line.match(/group-title="([^"]*)"/);
+            const nameMatch = line.split(',');
+            
+            currentChannel.logo = logoMatch ? logoMatch[1] : '';
+            currentChannel.group = groupMatch ? groupMatch[1] : 'Uncategorized';
+            if (!currentChannel.group || currentChannel.group === "") currentChannel.group = 'Uncategorized';
+            
+            currentChannel.name = nameMatch.length > 1 ? nameMatch.slice(1).join(',').trim() : 'Unknown Channel';
+          } else if (line.startsWith('http')) {
+            currentChannel.url = line;
+            const uniqueString = (currentChannel.name || '') + currentChannel.url;
+            let hash = 0;
+            for (let j = 0; j < uniqueString.length; j++) {
+              hash = ((hash << 5) - hash) + uniqueString.charCodeAt(j);
+              hash |= 0;
+            }
+            currentChannel.id = Math.abs(hash).toString(36);
+            channelsData.push(currentChannel);
+            currentChannel = {};
+          }
+        }
+        
+        setChannels(channelsData);
+        if (channelsData.length > 0) setActiveChannel(channelsData[0]);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to parse local m3u:", err);
       } finally {
         setLoading(false);
       }
@@ -3279,21 +1929,21 @@ function LiveTvPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#141414] text-white pt-32 px-4 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0a0c] text-white pt-32 px-4 flex items-center justify-center">
          <div className="w-12 h-12 border-4 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen bg-[#141414] text-white font-sans flex flex-col h-screen overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen bg-[#0a0a0c] text-white font-sans flex flex-col h-screen overflow-hidden">
       <Navbar activeTab="Live TV" setActiveTab={() => {}} onSearch={setSearchQuery} mobileSearchOpen={mobileSearchOpen} toggleMobileSearch={() => setMobileSearchOpen(!mobileSearchOpen)} />
       
       {/* Inline Player Section */}
       <div className="w-full flex-none bg-black pt-20 pb-4 h-[45vh] md:h-[55vh] relative border-b border-white/10 shadow-2xl z-10">
          {activeChannel ? (
            <div className="w-full h-full max-w-7xl mx-auto relative flex items-center justify-center group">
-              <HlsPlayer src={activeChannel.url} className="w-full h-full object-contain bg-black" autoPlay controls />
+              <CustomPlayer src={activeChannel.url} type="m3u8" className="w-full h-full object-contain bg-black" autoPlay controls />
               <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg flex items-center space-x-3 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
                  {activeChannel.logo ? (
                     <img src={activeChannel.logo} className="h-8 w-auto object-contain max-w-[80px]" alt="logo" onError={(e) => e.target.style.display = 'none'} />
@@ -3315,8 +1965,8 @@ function LiveTvPage() {
       </div>
 
       {/* Guide Section */}
-      <div className="flex-1 overflow-hidden flex flex-col bg-[#141414]">
-         <div className="p-4 border-b border-white/5 flex items-center justify-start flex-none z-10 bg-[#141414]">
+      <div className="flex-1 overflow-hidden flex flex-col bg-[#0a0a0c]">
+         <div className="p-4 border-b border-white/5 flex items-center justify-start flex-none z-10 bg-[#0a0a0c]">
             <div className="flex space-x-2 overflow-x-auto w-full scrollbar-hide pb-2 md:pb-0">
               {groups.map(g => (
                 <button key={g} onClick={() => setSelectedGroup(g)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedGroup === g ? 'bg-white text-black' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}>
@@ -3362,6 +2012,7 @@ export default function App() {
   const [showLoader, setShowLoader] = useState(true);
   const [fadeLoader, setFadeLoader] = useState(false);
   const location = useLocation();
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     // The animation takes about 4.5 seconds to complete based on CSS.
@@ -3381,15 +2032,27 @@ export default function App() {
       
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={currentUser ? <Dashboard /> : <OnboardingPage />} />
+          <Route path="/login" element={!currentUser ? <AuthPage /> : <Navigate to="/" />} />
+          <Route path="/watchlist" element={currentUser ? <WatchlistPage /> : <Navigate to="/login" />} />
           <Route path="/title/:type/:id" element={<TitlePage />} />
-          <Route path="/watch/:type/:id" element={<WatchPage />} />
+          <Route path="/watch/:type/:id" element={currentUser ? <WatchPage /> : <Navigate to="/login" />} />
           <Route path="/category/:title" element={<CategoryPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile" element={currentUser ? <ProfilePage /> : <Navigate to="/login" />} />
           <Route path="/person/:id" element={<PersonPage />} />
           <Route path="/company/:id" element={<CompanyPage />} />
           <Route path="/live" element={<LiveTvPage />} />
+          <Route path="*" element={
+            <div className="min-h-screen bg-[#0a0a0c] text-white flex flex-col items-center justify-center pt-32">
+              <h1 className="text-6xl font-black mb-4">404</h1>
+              <p className="text-gray-400 mb-8">Oops! Page not found.</p>
+              <Link to="/" className="bg-netflix-red text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition shadow-[0_0_20px_rgba(229,9,20,0.4)]">
+                Return Home
+              </Link>
+            </div>
+          } />
         </Routes>
+        <OfflineToast />
       </AnimatePresence>
     </>
   );

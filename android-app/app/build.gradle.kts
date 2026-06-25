@@ -11,7 +11,7 @@ android {
     compileSdk = 36
     defaultConfig {
         applicationId = "com.shivamraj.netphlixx"
-        minSdk = 31
+        minSdk = 24
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"

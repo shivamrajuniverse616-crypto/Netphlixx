@@ -12,7 +12,6 @@
   :root {
     --accent-color: #2b82f6;
   }
-  
   body {
     background-color: var(--color-shows-dark);
     color: white;
@@ -21,6 +20,16 @@
     margin: 0;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     overflow-x: hidden;
+    overscroll-behavior-y: none; /* Prevent pull-to-refresh bounce */
+    -webkit-tap-highlight-color: transparent; /* Remove blue tap highlight on mobile */
+    user-select: none; /* Disable text selection for app-like feel */
+    -webkit-user-select: none;
+  }
+  
+  /* Allow text selection in inputs */
+  input, textarea {
+    user-select: auto;
+    -webkit-user-select: auto;
   }
 }
 
