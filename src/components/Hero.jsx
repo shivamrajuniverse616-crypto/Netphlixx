@@ -76,10 +76,7 @@ export default function Hero({ movie, trending = [], onSelect }) {
 
       <div className="absolute inset-0 w-full h-full z-0">
         <div className={`w-full h-full animate-in fade-in duration-1000 ${trailerKey && !videoEnded ? 'md:hidden' : ''}`}>
-           <picture className="w-full h-full block">
-             <source media="(min-width: 768px)" srcSet={`${IMAGE_BASE_URL}${movie?.backdrop_path || movie?.poster_path}`} />
-             <img src={`${IMAGE_BASE_URL_W500}${movie?.poster_path || movie?.backdrop_path}`} alt="Hero Banner" className="w-full h-full object-cover object-center md:object-top" />
-           </picture>
+           <img src={`${IMAGE_BASE_URL}${movie?.backdrop_path || movie?.poster_path}`} alt="Hero Banner" className="w-full h-full object-cover object-center md:object-top" />
         </div>
         
         {trailerKey && !videoEnded && (
