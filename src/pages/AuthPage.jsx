@@ -4,7 +4,7 @@ import { auth, googleProvider } from '../firebase';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  signInWithPopup,
+  signInWithRedirect,
   updateProfile,
   sendPasswordResetEmail
 } from 'firebase/auth';
@@ -94,11 +94,11 @@ const AuthPage = () => {
     setError('');
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
-      navigate('/');
+      await signInWithRedirect(auth, googleProvider);
+      // Note: We don't navigate('/') here because signInWithRedirect will reload the page.
+      // The AuthContext's onAuthStateChanged will automatically pick up the logged-in user upon return.
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
