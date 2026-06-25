@@ -928,7 +928,7 @@ function TitlePage() {
 
 import Hls from 'hls.js';
 
-const CustomPlayer = ({ src, type = 'm3u8', title, poster, onReady, onError, onProgress, captions = [] }) => {
+const CustomPlayer = ({ src, type = 'm3u8', title, poster, onReady, onError, onProgress, className = '', captions = [] }) => {
   const playerRef = useRef(null);
   const hlsRef = useRef(null);
 
@@ -946,9 +946,15 @@ const CustomPlayer = ({ src, type = 'm3u8', title, poster, onReady, onError, onP
       playerRef.current.src = src;
       playerRef.current.addEventListener('loadedmetadata', () => onReady?.());
     }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+    };
   }, [src, type]);
 
-  return <video ref={playerRef} controls poster={poster} autoPlay playsInline className="w-full h-full" />;
+  return <video ref={playerRef} crossOrigin="anonymous" controls poster={poster} autoPlay playsInline className={`w-full h-full ${className}`} />;
 };
 
 function WatchPage() {

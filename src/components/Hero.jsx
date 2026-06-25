@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FastAverageColor } from 'fast-average-color';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { FaPlay as Play, FaVolumeHigh as Volume2, FaVolumeXmark as VolumeX } from 'react-icons/fa6';
@@ -8,13 +7,10 @@ import MagneticButton from './MagneticButton';
 import { getMediaType } from '../utils/media';
 import { API_KEY, BASE_URL, IMAGE_BASE_URL, IMAGE_BASE_URL_W500 } from '../utils/constants';
 
-const fac = new FastAverageColor();
-
 export default function Hero({ movie, trending = [], onSelect }) {
   const [trailerKey, setTrailerKey] = useState(null);
   const [isMuted, setIsMuted] = useState(true);
   const [videoEnded, setVideoEnded] = useState(false);
-  const [bgColor, setBgColor] = useState('rgba(20,20,20,1)');
   const [details, setDetails] = useState(null);
   const navigate = useNavigate();
 
@@ -22,18 +18,6 @@ export default function Hero({ movie, trending = [], onSelect }) {
     if (!movie) return;
     setVideoEnded(false);
     
-    // Extract dynamic color
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.src = `${IMAGE_BASE_URL_W500}${movie.backdrop_path}`;
-    img.onload = () => {
-      fac.getColorAsync(img)
-        .then(color => {
-          setBgColor(color.rgba);
-        })
-        .catch(e => console.log(e));
-    };
-
     async function fetchTrailer() {
       const mediaType = getMediaType(movie);
       
@@ -68,10 +52,10 @@ export default function Hero({ movie, trending = [], onSelect }) {
 
   return (
     <header className="h-[65vh] md:h-[85vh] relative text-white bg-[#141414] overflow-hidden">
-      {/* Dynamic Color Gradient Overlay */}
+      {/* Static Color Gradient Overlay */}
       <div 
         className="absolute inset-0 w-full h-full z-0 transition-colors duration-1000 opacity-60" 
-        style={{ background: `radial-gradient(circle at 70% 30%, ${bgColor} 0%, transparent 60%)` }}
+        style={{ background: `radial-gradient(circle at 70% 30%, rgba(20,20,20,0.8) 0%, transparent 60%)` }}
       ></div>
 
       <div className="absolute inset-0 w-full h-full z-0">
