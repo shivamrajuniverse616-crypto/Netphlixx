@@ -948,7 +948,7 @@ const CustomPlayer = ({ src, type = 'm3u8', title, poster, onReady, onError, onP
     }
   }, [src, type]);
 
-  return <video ref={playerRef} controls poster={poster} className="w-full h-full" />;
+  return <video ref={playerRef} controls poster={poster} autoPlay playsInline className="w-full h-full" />;
 };
 
 function WatchPage() {

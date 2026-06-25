@@ -161,6 +161,8 @@ class MainActivity : ComponentActivity() {
             webViewClient = AdBlockWebViewClient(
                 onPageFinishedAction = {
                     swipeRefreshLayout.isRefreshing = false
+                    // Force unregister Service Worker to bypass Vercel PWA cache
+                    webView.evaluateJavascript("if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){if(r.length>0){for(let i=0;i<r.length;i++){r[i].unregister()}; window.location.reload(true);}})}", null)
                 },
                 onNetworkErrorAction = {
                     swipeRefreshLayout.isRefreshing = false
