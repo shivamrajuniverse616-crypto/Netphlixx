@@ -5,7 +5,7 @@ import { Star } from 'lucide-react';
 import { FaPlay as Play, FaVolumeHigh as Volume2, FaVolumeXmark as VolumeX } from 'react-icons/fa6';
 import MagneticButton from './MagneticButton';
 import { getMediaType } from '../utils/media';
-import { API_KEY, BASE_URL, IMAGE_BASE_URL, IMAGE_BASE_URL_W500 } from '../utils/constants';
+import { API_KEY, BASE_URL, IMAGE_BASE_URL_W1280, IMAGE_BASE_URL_W500 } from '../utils/constants';
 
 export default function Hero({ movie, trending = [], onSelect }) {
   const [trailerKey, setTrailerKey] = useState(null);
@@ -60,7 +60,7 @@ export default function Hero({ movie, trending = [], onSelect }) {
 
       <div className="absolute inset-0 w-full h-full z-0">
         <div className={`w-full h-full animate-in fade-in duration-1000`}>
-           <img src={`${IMAGE_BASE_URL}${movie?.backdrop_path || movie?.poster_path}`} alt="Hero Banner" className="w-full h-full object-cover object-center md:object-top" />
+           <img src={`${IMAGE_BASE_URL_W1280}${movie?.backdrop_path || movie?.poster_path}`} alt="Hero Banner" className="w-full h-full object-cover object-center md:object-top" />
         </div>
       </div>
 

@@ -137,8 +137,6 @@ class MainActivity : ComponentActivity() {
 
         // 3. WebView
         webView = WebView(this).apply {
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
             settings.apply {
                 javaScriptEnabled = true
